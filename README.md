@@ -1,0 +1,2 @@
+# fototakip
+is takibi
