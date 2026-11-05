@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# `npm run gen:api` ile üretilir; elle düzenlenmez, depoya girmez.
+src/api/

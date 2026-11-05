@@ -1,0 +1,57 @@
+openapi: 3.1.0
+info:
+  title: FotoTakip API
+  version: 0.1.0
+  description: Faz 1 sözleşmesi Issue #2'de bu dosyaya eklenecek. Şimdilik yalnızca sağlık kontrolü.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /
+security: []
+tags:
+  - name: sistem
+    description: Sistem uç noktaları
+paths:
+  /health:
+    get:
+      tags: [sistem]
+      operationId: getHealth
+      summary: Sağlık kontrolü
+      responses:
+        "200":
+          description: Servis ayakta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "500":
+          description: Beklenmeyen hata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, mode]
+      properties:
+        status:
+          type: string
+          const: ok
+        mode:
+          type: string
+          enum: [termux, server]
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string

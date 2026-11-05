@@ -1,156 +1,141 @@
 # FotoTakip
 
-Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla açılır ("önce") ve bir fotoğrafla kapanır ("sonra"); yönetici iki fotoğrafı karşılaştırıp onaylar.
+Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla açılır ("önce") ve bir fotoğrafla kapanır ("sonra"). Yönetici iki fotoğrafı karşılaştırır, onaylar ya da gerekçe yazarak geri gönderir.
 
 [![CI](https://github.com/yuzay26-del/fototakip/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzay26-del/fototakip/actions/workflows/ci.yml)
 
-> **Durum:** Faz 1 geliştiriliyor. Aşağıdaki kurulum komutları, [#1 Repo iskeleti](https://github.com/yuzay26-del/fototakip/issues/1) birleşince çalışır hale gelir.
-> Arayüzü şimdiden denemek için: [tıklanabilir demo](https://claude.ai/artifact/5Uhwpu4SXLC3C8SF5eoNRN).
+**Durum: çalışan demo (v0.2).** Tek bir Android telefonda Termux ile çalışır; ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
 
 ## Ne yapar
 
-- **Fotoğraftan iş:** Kamerayı aç, çek, proje ve türü seç. İş oluşur.
-- **Kanban pano:** Kartın kapağı son fotoğraftır. Mobilde kaydırarak, masaüstünde sürükleyerek durum değiştirilir.
-- **Fotoğraf üzerine işaret:** Sorunlu noktaya dokunup not bırakılır, not yorum olarak kaydedilir.
-- **Önce / sonra karşılaştırma:** Kaydırıcıyla iki fotoğraf üst üste incelenir; yönetici onaylar ya da gerekçe yazarak geri gönderir.
-- **Fotoğraflı kontrol listesi:** Her madde bir kanıt fotoğrafına bağlanabilir.
-- **Galeri, takvim, harita:** Fotoğraflar türe göre, işler son tarihe ve konuma göre listelenir.
-- **Müşteri raporu:** Proje için önce/sonra çiftlerinden teslim belgesi üretilir.
-- **Çevrimdışı çekim:** İnternet yokken çekilen fotoğraflar kuyruğa alınır, bağlantı gelince yüklenir.
+| Özellik | Ayrıntı |
+| --- | --- |
+| Fotoğraftan iş | Kamerayla çek ya da galeriden seç, proje ve tür seç: iş oluşur. Birden fazla fotoğraf tek işe gider. |
+| Pano | Kanban, liste ve takvim görünümü. Mobilde kart kaydırılarak, masaüstünde sürüklenerek durum değişir. |
+| Havuz | Atanmamış işleri saha ekibi görür ve "Üstlen" ile kendine alır. |
+| Fotoğraf üzerine işaret | Sorunlu noktaya dokunup not bırakılır; not yorum olarak da kaydedilir. |
+| Önce / sonra | Kaydırıcıyla iki fotoğraf üst üste karşılaştırılır. |
+| Kontrol listesi | Maddeler fotoğraf kanıtına bağlanır. "Foto zorunlu" maddeler kanıtsız işaretlenemez. |
+| Otomasyon | "Sonra" fotoğrafı gelince iş "Onay bekliyor"a geçer. Bunun için önce fotoğrafı olmalı ve zorunlu kanıtlar tamamlanmış olmalı. |
+| Onay | Yönetici onaylar veya gerekçe yazarak geri gönderir; kartta "Geri gönderildi" görünür. |
+| Müşteri imzası | Parmakla imza ve imzalayanın adı; raporda görünür. |
+| Harita | OpenStreetMap üzerinde müşteri pinleri: içinde açık iş sayısı, geciken iş varsa kırmızı, altında müşteri adı. Pine dokununca adres, yetkili, uzaklık, açık işler ve Google Haritalar yol tarifi açılır. |
+| Mevcut konum | Hedef düğmesi mavi nokta ve doğruluk dairesiyle konumunu gösterir; liste "Yakınımdaki müşteriler" olarak uzaklığa göre sıralanır. |
+| Fotoğraftan adres | Fotoğrafın konumu adrese çevrilir (OpenStreetMap Nominatim). Müşterinin adresi boşsa otomatik yazılır. Doluysa ve farklıysa "Bu adresi kullan" önerisi çıkar. Müşterinin konumu yoksa ilk konumlu fotoğraf konumu olur. |
+| Yakın müşteri | Kamera açılınca 300 m içindeki müşteri otomatik seçilir. Yakında kayıtlı müşteri yoksa "Bu konumda yeni müşteri ekle" önerilir. |
+| Konum uyarısı | Fotoğraf seçilen müşteriden 500 m'den uzakta çekildiyse uyarı verir ve etkinlik geçmişine yazar. |
+| Haritadan müşteri | Yönetici haritaya dokunarak ya da bulunduğu yeri kullanarak müşteri ekler; adres otomatik gelir. Yanlış konum "Konumu düzelt" ile değiştirilir. |
+| Konum kaynağı | Her fotoğrafta konumun nereden geldiği yazar: EXIF, cihaz (±doğruluk) ya da proje adresi. |
+| Galeri, rapor | Galeri fotoğraf türüne göre süzülür. Rapor önce/sonra çiftlerinden oluşur, tarayıcıdan yazdırılır ya da PDF'e kaydedilir. |
+| Çevrimdışı | Bağlantı yokken çekilen fotoğraflar telefonda kuyruğa alınır, bağlantı gelince sırayla yüklenir. |
+| Canlı güncelleme | Biri işi değiştirince diğer ekranlar birkaç saniye içinde yenilenir. |
+| Roller | Yönetici her şeyi görür. Saha teknisyeni yalnızca kendi işlerini ve havuzu görür, işi tamamlayamaz. |
+| Yedek | Yönetici tek tıkla veritabanı ve fotoğrafları zip olarak indirir. |
 
-Hangi özelliğin hangi fazda geldiği [docs/ROADMAP.md](docs/ROADMAP.md) dosyasında.
+Kaydedilen fotoğraflar döndürülür, 2560 px'e küçültülür ve EXIF'siz yazılır. Dosyada konum kalmaz; konum yalnızca veritabanında tutulur.
 
-## İki çalışma modu
-
-Aynı kod iki modda çalışır; aradaki fark yalnızca `.env` dosyasındadır.
-
-| Mod | Kimin için | Veritabanı | Fotoğraf deposu | Kuyruk |
-| --- | --- | --- | --- | --- |
-| `termux` | 1 kişi veya küçük ekip, tek Android telefon | SQLite | Telefon klasörü | Süreç içi |
-| `server` | Onlarca kullanıcı | PostgreSQL | MinIO / S3 | Redis + worker |
-
-Termux modunda OCR ve yapay zeka özellikleri kapalıdır; bu paketler telefonda derlenemez.
-
-## Kurulum: Termux (Android)
-
-1. Termux'u [F-Droid](https://f-droid.org/packages/com.termux/) veya [GitHub sürümünden](https://github.com/termux/termux-app/releases) kur. Play Store sürümü eski ve güncellenmiyor.
-2. Termux'ta çalıştır:
+## Tek satırda kurulum veya güncelleme (Termux)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yuzay26-del/fototakip/main/scripts/install.sh | bash
 ```
 
-Betik şunları yapar: sistem paketlerini kurar, galeriye erişim izni ister, hazır derlenmiş arayüzü indirir, veritabanını oluşturur ve sunucuyu `8080` portunda başlatır.
+Kod yoksa indirir, varsa günceller ve kurar. Verilere (`~/fototakip-data`) dokunmaz. Bittikten sonra `fototakip` yazıp başlat.
 
-3. **HTTPS bağlantısı aç.** Bu adım isteğe bağlı değil.
+## Telefona kurulum: adım adım (Termux)
 
-Tarayıcılar kamera, konum, bildirim ve çevrimdışı çalışmayı yalnızca HTTPS'te açar. `http://192.168.x.x:8080` adresinden bağlanan diğer telefonlarda bu özelliklerin hiçbiri çalışmaz.
+1. **Termux'u kur:** [F-Droid](https://f-droid.org/packages/com.termux/) veya [GitHub sürümü](https://github.com/termux/termux-app/releases). Play Store sürümü eski ve güncellenmiyor.
+2. **Kodu telefona al.** İki yol var:
+   - Zip dosyasıyla:
+     ```bash
+     termux-setup-storage                     # İndirilenler klasörüne erişim izni
+     pkg install -y unzip
+     unzip ~/storage/downloads/fototakip.zip -d ~
+     ```
+   - GitHub'dan:
+     ```bash
+     pkg install -y git
+     git clone https://github.com/yuzay26-del/fototakip.git ~/fototakip
+     ```
+3. **Kur ve başlat:**
+   ```bash
+   bash ~/fototakip/scripts/install-termux.sh
+   fototakip
+   ```
+4. **Aç:** telefonun tarayıcısında `http://localhost:8080` adresine git. Örnek hesaplar `yusuf` (yönetici), `mert` ve `elif`; hepsinin parolası `demo1234`.
+5. **Pil ayarı:** Ayarlar › Uygulamalar › Termux › Pil › **Kısıtlamasız**. Yapmazsan ekran kapanınca sunucu durabilir. Telefon açılınca kendiliğinden başlaması için [Termux:Boot](https://f-droid.org/packages/com.termux.boot/) uygulamasını da kur.
+
+Örnek veri istemiyorsan ilk açılışta `fototakip --no-demo` çalıştır. Bu durumda tek bir yönetici hesabı açılır ve parolası ekrana yazılır.
+
+## Diğer telefonlardan bağlanma ve HTTPS
+
+Aynı Wi‑Fi'deki telefonlar `http://<telefonun-ip>:8080` adresinden bağlanabilir; adres, `fototakip` başlatılınca ekrana yazılır. Ama tarayıcılar cihaz konumunu, çevrimdışı açılışı ve ana ekrana eklemeyi yalnızca HTTPS'te açar. Fotoğraf çekme ve yükleme HTTP'de de çalışır.
+
+HTTPS adresi açmak için ikinci bir Termux oturumunda:
 
 ```bash
-pkg install cloudflared
-cloudflared tunnel --url http://localhost:8080
+fototakip-tunel
 ```
 
-Çıktıdaki `https://….trycloudflare.com` adresini ekiptekilerle paylaş. Bu adres her başlatmada değişir; kalıcı adres için Cloudflare hesabına bağlı adlandırılmış bir tunnel kullan.
+Çıkan `https://….trycloudflare.com` adresini ekiple paylaş. Bu adres her başlatmada değişir ve bağlantıyı bilen herkes giriş ekranına ulaşabilir. Örnek hesapların parolalarını değiştir ya da `--no-demo` ile başla.
 
-4. **Telefonun sunucuyu kapatmasını engelle:**
-   - Android ayarlarında Termux için pil optimizasyonunu kapat.
-   - Telefon açılınca otomatik başlaması için [Termux:Boot](https://f-droid.org/packages/com.termux.boot/) eklentisini kur. Kurulum betiği `~/.termux/boot/fototakip.sh` dosyasını oluşturur.
+## Konum nereden geliyor
 
-Fotoğraflar `~/storage/shared/FotoTakip/` altında durur. Günlük yedek almayı unutma: telefon kaybolursa bütün veri gider.
+Öncelik sırası: fotoğrafın EXIF konumu → çekim anındaki cihaz konumu → müşterinin kayıtlı adresi.
 
-## Kurulum: Sunucu (Docker)
+Android'de EXIF konumuna güvenme:
+- Samsung Kamera'da konum etiketi varsayılan olarak kapalıdır: Kamera › Ayarlar › **Konum etiketleri**.
+- Chrome, galeriden seçilen fotoğraflarda konum bilgisini çoğu zaman siler.
+- WhatsApp gibi uygulamalardan gelen fotoğraflarda konum bilgisi yoktur.
+
+Bu yüzden asıl kaynak, fotoğrafın yüklendiği andaki cihaz konumudur. Cihaz konumu yalnızca güvenli bağlantıda çalışır: aynı telefonda `http://localhost:8080` adresinde ya da başka telefonlarda `fototakip-tunel` ile açılan HTTPS adresinde. Düz `http://192.168…` adresinde konum alınamaz.
+
+**Harita karoları ve adres bulma internet ister.** Harita karoları OpenStreetMap'ten gelir. Bakılan bölgeler telefonda önbelleğe alınır, internet yokken son bakılan bölge görünür. Adres bulma OpenStreetMap Nominatim'i kullanır: saniyede en fazla 1 istek gönderilir ve sonuçlar önbelleğe alınır. Bu açıkken fotoğraf koordinatları OpenStreetMap Vakfı'nın sunucusuna gider. Kapatmak için:
 
 ```bash
-git clone https://github.com/yuzay26-del/fototakip.git
-cd fototakip/deploy
-cp .env.example .env        # SECRET_KEY ve parolaları değiştir
-docker compose up -d
+fototakip --geocoder off
 ```
 
-Uygulama `http://localhost:8080` adresinde açılır. Dışarıya açmadan önce önüne HTTPS sağlayan bir ters vekil koy (Caddy, Traefik veya Cloudflare Tunnel).
+## Yedek
 
-Termux'tan sunucuya geçiş: SQLite verisini ve fotoğraf klasörünü taşıyan bir betik Faz 3'te eklenecek.
+- Uygulamadan: Profil › **Yedek indir** (yönetici).
+- Termux'tan: `bash ~/fototakip/scripts/backup.sh`. Yedek, İndirilenler klasörüne gider.
 
-## Yapılandırma
+Veriler `~/fototakip-data` klasöründe durur. Telefon kaybolursa yedeği olmayan veri gider.
 
-| Değişken | Termux örneği | Sunucu örneği | Açıklama |
-| --- | --- | --- | --- |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./fototakip.db` | `postgresql+asyncpg://fototakip:…@db/fototakip` | Veritabanı |
-| `STORAGE_BACKEND` | `local` | `s3` | Fotoğraf deposu |
-| `MEDIA_ROOT` | `~/storage/shared/FotoTakip` | — | Yerel depo klasörü |
-| `S3_ENDPOINT`, `S3_BUCKET`, `S3_KEY`, `S3_SECRET` | — | `http://minio:9000`, `fototakip`, … | S3 uyumlu depo |
-| `QUEUE_BACKEND` | `inprocess` | `redis` | Arka plan işleri |
-| `REDIS_URL` | — | `redis://redis:6379/0` | Kuyruk bağlantısı |
-| `SECRET_KEY` | uzun rastgele değer | uzun rastgele değer | Oturum anahtarı imzası |
-| `MAX_UPLOAD_MB` | `15` | `15` | Tek fotoğraf için yükleme sınırı |
+## GitHub'a yükleme
 
-Örnek dosyalar: `backend/.env.termux` ve `deploy/.env.example`. `.env` dosyasını asla commit etme.
-
-## Mimari
-
-```
-PWA arayüz (React + Vite)
-        │ HTTPS · REST + WebSocket
-        ▼
-FastAPI çekirdeği ──► Veritabanı   (SQLite | PostgreSQL)
-        │         ──► Fotoğraf     (klasör | MinIO / S3)
-        │         ──► Kuyruk       (asyncio | Redis)
-        ▼
-Görüntü işleyici: küçük resim, EXIF, GPS · OCR yalnızca sunucuda
+```bash
+bash scripts/github-upload.sh --check     # yalnızca durumu raporlar
+bash scripts/github-upload.sh             # gerekiyorsa yükler ve doğrular
 ```
 
-Kararların gerekçeleri `docs/adr/` klasöründe.
+Betik şunları kontrol eder:
 
-## Repo yapısı
-
-```
-backend/    FastAPI uygulaması, modeller, göçler, testler
-web/        React + TypeScript arayüz
-api/        openapi.yaml: API sözleşmesi
-scripts/    Termux kurulum ve test betikleri
-deploy/     docker-compose.yml ve .env.example
-docs/       yol haritası, ADR'ler, elle test adımları
-```
+1. Depo GitHub'da var mı, erişim var mı?
+2. Bu sürüm zaten yüklü mü? Yüklüyse hiçbir şey yapmaz.
+3. GitHub'da burada olmayan commit var mı? Varsa üzerine yazmaz, durur.
+4. Yüklemeden sonra GitHub'daki sürüm yereldekiyle aynı mı?
 
 ## Geliştirme
 
-Gerekenler: Python 3.12, Node 20+, Docker (PostgreSQL testleri için).
-
 ```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload --port 8080
-pytest -q
-ruff check . && ruff format --check .
-
-# Arayüz
-cd web
-npm install
-npm run gen:api      # api/openapi.yaml'dan istemci üretir
-npm run dev
-npm run lint && npm run typecheck && npm test
+python3 -m fototakip --port 8080 --data ./data     # sunucu
+python3 -m unittest discover -s tests -v           # testler (Pillow'lu ve Pillow'suz çalışır)
 ```
 
-API sözleşmesi önce gelir. Yeni bir uç nokta önce `api/openapi.yaml`'a yazılır ve onaylanır, kod ondan sonra yazılır. `web/src/api/` klasörü üretilmiş koddur, elle düzenlenmez.
+```
+fototakip/   sunucu: api.py (uç noktalar), server.py (HTTP, SSE), db.py (şema, göçler), geo.py (uzaklık, adres bulma), images.py (EXIF, küçük resim), seed.py
+web/         arayüz: index.html, app.js, styles.css, sw.js, vendor/leaflet (derleme adımı yok)
+scripts/     install-termux.sh, github-upload.sh, backup.sh
+tests/       API uçtan uca testleri
+```
 
-## Katkı
+## Bilinen sınırlar
 
-Bu projede kodun büyük kısmını yapay zeka ajanları yazıyor, birleştirme kararını insan veriyor. İnsan ya da ajan, katkı yapan herkes şu kurallara uyar:
-
-- Kurallar: [AGENTS.md](AGENTS.md). Klasör sahipliği, dal adları, PR şablonu ve yasaklar burada.
-- Ajan rolleri: `.claude/agents/` (architect, backend, frontend, tester, reviewer).
-- `main` dalına doğrudan commit yok. Her değişiklik bir Issue'ya bağlı PR ile gelir ve CI yeşil olmadan birleşmez.
-- Kamera, çevrimdışı senkron ve pil davranışı konteynerde test edilemez. Bu tür değişiklikler gerçek telefonda [docs/MANUAL_TEST.md](docs/MANUAL_TEST.md) adımlarıyla doğrulanır.
-
-## Gizlilik
-
-Fotoğraflar konum (GPS) ve çekim zamanı içerir. Müşteriye giden raporlarda ve paylaşım bağlantılarında konum bilgisi silinir. Konum kaydı proje bazında kapatılabilir.
-
-## Lisans
-
-Karar bekliyor: MIT veya AGPL-3.0. Bkz. [#1](https://github.com/yuzay26-del/fototakip/issues/1).
-# fototakip
-is takibi
+- Tek telefon, tek SQLite dosyası. Onlarca eşzamanlı kullanıcı için tasarlanmadı.
+- HEIC/HEIF fotoğraflar kabul edilmez. Samsung'da Kamera › Ayarlar › Gelişmiş › Yüksek verimli resimler kapalı olmalı.
+- Canlı güncellemede her değişiklik tüm listeyi yeniden yükler. Yüzlerce işe kadar sorun çıkarmaz.
+- Malzeme/parça ve sahada geçen süre takibi henüz yok.
+- Harita şimdilik sokak haritası; uydu görüntüsü yok (ücretsiz ve kullanım şartları uygun bir kaynak gerekiyor).
+- Lisans henüz seçilmedi. Leaflet BSD-2 lisanslıdır (`web/vendor/leaflet/LICENSE`).

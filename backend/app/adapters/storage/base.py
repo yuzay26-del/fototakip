@@ -1,0 +1,13 @@
+from typing import Protocol
+
+
+class StorageBackend(Protocol):
+    """Fotoğraf dosyalarını saklayan arka uç."""
+
+    async def put(self, key: str, data: bytes, content_type: str) -> None: ...
+
+    async def get(self, key: str) -> bytes: ...
+
+    async def delete(self, key: str) -> None: ...
+
+    async def url_for(self, key: str, expires_in: int = 3600) -> str: ...

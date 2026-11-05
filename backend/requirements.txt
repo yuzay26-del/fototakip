@@ -1,0 +1,4 @@
+# Server modu (Docker). Termux paketlerinin tamamı + sunucuya özel sürücüler.
+-r requirements-termux.txt
+pillow>=11
+asyncpg>=0.30

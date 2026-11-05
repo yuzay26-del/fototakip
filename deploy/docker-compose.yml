@@ -1,0 +1,73 @@
+# Server modu.  docker compose -f deploy/docker-compose.yml up --build
+# Değerleri değiştirmek için: cp deploy/.env.example deploy/.env
+x-backend-env: &backend-env
+  APP_MODE: server
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fototakip}:${POSTGRES_PASSWORD:-fototakip}@postgres:5432/${POSTGRES_DB:-fototakip}
+  STORAGE_BACKEND: s3
+  QUEUE_BACKEND: redis
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: ${SECRET_KEY:-degistir-beni}
+  MEDIA_ROOT: /data/media
+  S3_ENDPOINT: http://minio:9000
+  S3_BUCKET: ${S3_BUCKET:-fototakip}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-fototakip}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-fototakip-gizli}
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: ghcr.io/yuzay26-del/fototakip:dev
+    environment: *backend-env
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: ghcr.io/yuzay26-del/fototakip:dev
+    command: ["python", "-m", "app.worker"]
+    environment: *backend-env
+    depends_on:
+      - api
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fototakip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fototakip}
+      POSTGRES_DB: ${POSTGRES_DB:-fototakip}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fototakip}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-fototakip}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-fototakip-gizli}
+    ports:
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+volumes:
+  pgdata:
+  miniodata:

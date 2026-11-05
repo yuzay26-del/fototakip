@@ -1,0 +1,11 @@
+# Termux modu. Pillow bilerek yok: install.sh onu `pkg install python-pillow` ile kurar
+# (pip ile derlemek telefonda saatler sürebilir). Bu dosyaya derleme gerektiren paket ekleme.
+fastapi>=0.115,<1
+uvicorn>=0.32,<1
+sqlalchemy>=2.0.36,<2.1
+aiosqlite>=0.20
+alembic>=1.14
+pydantic-settings>=2.6
+python-multipart>=0.0.18
+passlib>=1.7.4
+pyjwt>=2.10
