@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>FotoTakip Proje Haritası</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen instrument. Header strip, 3D stage filling the rest, a reading panel on the right (bottom sheet on phones). Layers stack top→bottom: devices/services, UI, API, server, data, operations. */
+:root {
+  --bg: #E9EDF0;
+  --stage: #E2E7EB;
+  --panel: #FFFFFF;
+  --ink: #141C24;
+  --muted: #5A6774;
+  --line: #CDD5DB;
+  --accent: #0A6890;
+  --accent-soft: #D7EAF3;
+  --e-call: #0A6890;
+  --e-read: #3F7CC4;
+  --e-write: #C46A12;
+  --e-event: #7A55C9;
+  --e-external: #23865A;
+  --e-use: #6B7785;
+  --e-route: #A9B3BB;
+  --m-get: #3F7CC4; --m-post: #23865A; --m-patch: #C46A12; --m-delete: #C2412D; --m-sse: #7A55C9;
+  --k-ui: #0A6890; --k-module: #445566; --k-table: #8A6A2A; --k-store: #6E5420; --k-external: #23865A; --k-device: #2E7D6B; --k-script: #7A55C9;
+  --label-bg: rgba(255,255,255,.86);
+  --f-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1318; --stage: #0B1015; --panel: #141C23; --ink: #E3E9ED; --muted: #8D9BA7; --line: #26323C; --accent: #52B4DE; --accent-soft: #123345;
+    --e-call: #52B4DE; --e-read: #6FA4E8; --e-write: #F0A04B; --e-event: #A88CF2; --e-external: #4CC38A; --e-use: #8D9BA7; --e-route: #3A4853;
+    --m-get: #6FA4E8; --m-post: #4CC38A; --m-patch: #F0A04B; --m-delete: #F0765E; --m-sse: #A88CF2;
+    --k-ui: #52B4DE; --k-module: #9FB0BF; --k-table: #D6B36A; --k-store: #C29A4E; --k-external: #4CC38A; --k-device: #5FC7AE; --k-script: #A88CF2;
+    --label-bg: rgba(16,22,28,.86);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1318; --stage: #0B1015; --panel: #141C23; --ink: #E3E9ED; --muted: #8D9BA7; --line: #26323C; --accent: #52B4DE; --accent-soft: #123345;
+  --e-call: #52B4DE; --e-read: #6FA4E8; --e-write: #F0A04B; --e-event: #A88CF2; --e-external: #4CC38A; --e-use: #8D9BA7; --e-route: #3A4853;
+  --m-get: #6FA4E8; --m-post: #4CC38A; --m-patch: #F0A04B; --m-delete: #F0765E; --m-sse: #A88CF2;
+  --k-ui: #52B4DE; --k-module: #9FB0BF; --k-table: #D6B36A; --k-store: #C29A4E; --k-external: #4CC38A; --k-device: #5FC7AE; --k-script: #A88CF2;
+  --label-bg: rgba(16,22,28,.86);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; overflow: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px; position: relative; z-index: 5; }
+.brand { display: grid; min-width: 0; }
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 24px; line-height: 1; letter-spacing: .01em; text-wrap: balance; }
+.brand small { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.search { margin-left: auto; position: relative; width: min(300px, 100%); }
+.search input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; }
+.results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); overflow: hidden; z-index: 20; }
+.results button { display: flex; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 11px; text-align: left; }
+.results button:hover, .results button.on { background: var(--accent-soft); }
+.results .lay { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.body { position: relative; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--stage); overflow: hidden; touch-action: none; }
+#gl { position: absolute; inset: 0; }
+#gl canvas { display: block; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.lbl { font: 500 11px var(--f-body); color: var(--ink); background: var(--label-bg); padding: 1px 6px; border-radius: 5px; white-space: nowrap; pointer-events: auto; cursor: pointer; transform: translateY(-18px); transition: opacity .2s; border: 1px solid transparent; }
+.lbl.api { font-family: var(--f-mono); font-size: 10.5px; }
+.lbl.dim { opacity: .12 !important; }
+.lbl.hot { border-color: var(--accent); font-weight: 600; opacity: 1 !important; z-index: 2; }
+.lbl.step { background: var(--accent); color: var(--panel); opacity: 1 !important; }
+.lay-lbl { font: 700 13px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; pointer-events: none; }
+.toolbar { position: absolute; z-index: 4; top: 12px; left: max(12px, env(safe-area-inset-left, 0px)); right: 12px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+.toolbar > * { pointer-events: auto; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; color: var(--muted); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.chip[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: var(--accent-soft); }
+.chip .sw { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.ctrls { position: absolute; z-index: 4; right: 12px; bottom: 12px; display: flex; gap: 8px; }
+.icon-btn { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.icon-btn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.hint { position: absolute; z-index: 3; left: 12px; bottom: 14px; font-size: 12px; color: var(--muted); pointer-events: none; }
+aside { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; min-height: 0; padding-left: 18px; padding-right: max(18px, env(safe-area-inset-right, 0px)); padding-block: 16px 24px; display: grid; gap: 16px; align-content: start; }
+aside h2 { margin: 0; font-family: var(--f-display); font-size: 26px; font-weight: 700; line-height: 1.05; text-wrap: balance; overflow-wrap: anywhere; }
+aside h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+aside p { margin: 0; max-width: 62ch; }
+.eyebrow { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.kdot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.mono { font-family: var(--f-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.list button { width: 100%; text-align: left; border: 0; background: none; padding: 6px 8px; border-radius: 7px; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.list button:hover { background: var(--accent-soft); }
+.list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .tag { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.layers { display: grid; gap: 6px; }
+.layer-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+.layer-row b { font-weight: 600; }
+.layer-row .n { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.layer-row .num { font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--muted); text-align: center; }
+.flows { display: grid; gap: 6px; }
+.flow-btn { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 12px; display: flex; justify-content: space-between; gap: 10px; }
+.flow-btn:hover { border-color: var(--accent); }
+.flow-btn span { color: var(--muted); font-size: 12px; font-family: var(--f-mono); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+.steps li::before { content: counter(s); width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--muted); }
+.steps li.on { background: var(--accent-soft); }
+.steps li.on::before { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.steps li.done::before { border-color: var(--accent); color: var(--accent); }
+.steps b { font-weight: 600; display: block; font-size: 13px; }
+.steps span { font-size: 12.5px; color: var(--muted); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 7px 12px; font-weight: 500; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.legend { display: grid; gap: 5px; font-size: 12.5px; }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.note { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--accent); padding: 6px 10px; background: var(--accent-soft); border-radius: 0 8px 8px 0; }
+.fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+.sheet-handle { display: none; }
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  body { overflow: auto; }
+  .app { height: auto; display: block; }
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: max(320px, 62dvh); }
+  aside { overflow: visible; border-left: 0; border-top: 1px solid var(--line);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); padding-top: 16px; }
+  aside.min { max-height: none; overflow: visible; }
+  .sheet-handle { display: none; }
+  .hint { display: none; }
+  .search { width: 100%; margin-left: 0; }
+  .brand h1 { font-size: 21px; }
+  .toolbar { right: 12px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .chip { flex: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand"><h1>FotoTakip proje haritası</h1><small id="meta"></small></div>
+    <div class="search"><label for="q" class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Ara</label>
+      <input id="q" type="search" placeholder="Ara: tasks, /api/photos, geo.py…" autocomplete="off"><div class="results" id="results" hidden></div></div>
+  </header>
+  <div class="body">
+    <div class="stage" id="stage">
+      <div id="gl"></div>
+      <div class="toolbar" id="toolbar"></div>
+      <div class="ctrls">
+        <button class="icon-btn" id="b-rot" aria-pressed="true" title="Otomatik dönüş" aria-label="Otomatik dönüş"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+        <button class="icon-btn" id="b-reset" title="Görünümü sıfırla" aria-label="Görünümü sıfırla"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/></svg></button>
+      </div>
+      <div class="hint">Sürükle: döndür · iki parmak / tekerlek: yakınlaş · düğüme dokun: bağlantıları</div>
+    </div>
+    <aside id="panel" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script type="application/json" id="graph">{"edges": [{"kind": "call", "label": "app.js:114", "s": "ui.shell", "t": "api.GET /api/bootstrap"}, {"kind": "call", "label": "app.js:162", "s": "ui.camera", "t": "api.POST /api/photos"}, {"kind": "call", "label": "app.js:250", "s": "ui.login", "t": "api.POST /api/setup"}, {"kind": "call", "label": "app.js:278", "s": "ui.login", "t": "api.POST /api/login"}, {"kind": "call", "label": "app.js:639", "s": "ui.map", "t": "api.GET /api/geocode"}, {"kind": "call", "label": "app.js:754", "s": "ui.profile", "t": "api.GET /api/admin/integrations"}, {"kind": "call", "label": "app.js:986", "s": "ui.board", "t": "api.PATCH /api/tasks/{tid}"}, {"kind": "call", "label": "app.js:993", "s": "ui.sheet", "t": "api.PATCH /api/tasks/{tid}"}, {"kind": "call", "label": "app.js:1023", "s": "ui.profile", "t": "api.POST /api/logout"}, {"kind": "call", "label": "app.js:1032", "s": "ui.sheet", "t": "api.POST /api/tasks/{tid}/claim"}, {"kind": "call", "label": "app.js:1046", "s": "ui.sheet", "t": "api.POST /api/photos/{pid}/annotations"}, {"kind": "call", "label": "app.js:1049", "s": "ui.sheet", "t": "api.DELETE /api/annotations/{aid}"}, {"kind": "call", "label": "app.js:1050", "s": "ui.sheet", "t": "api.DELETE /api/tasks/{tid}/photos/{pid}"}, {"kind": "call", "label": "app.js:1053", "s": "ui.sheet", "t": "api.POST /api/tasks/{tid}/comments"}, {"kind": "call", "label": "app.js:1058", "s": "ui.sheet", "t": "api.POST /api/tasks/{tid}/checklist"}, {"kind": "call", "label": "app.js:1060", "s": "ui.sheet", "t": "api.DELETE /api/checklist/{cid}"}, {"kind": "call", "label": "app.js:1061", "s": "ui.sheet", "t": "api.PATCH /api/checklist/{cid}"}, {"kind": "call", "label": "app.js:1062", "s": "ui.sheet", "t": "api.POST /api/tasks/{tid}/review"}, {"kind": "call", "label": "app.js:1077", "s": "ui.sheet", "t": "api.POST /api/tasks/{tid}/signature"}, {"kind": "call", "label": "app.js:1080", "s": "ui.sheet", "t": "api.DELETE /api/tasks/{tid}"}, {"kind": "call", "label": "app.js:1083", "s": "ui.board", "t": "api.POST /api/tasks"}, {"kind": "call", "label": "app.js:1103", "s": "ui.sheet", "t": "api.POST /api/photos/{pid}/ai-review"}, {"kind": "call", "label": "app.js:1125", "s": "ui.profile", "t": "api.POST /api/admin/tunnel/start"}, {"kind": "call", "label": "app.js:1126", "s": "ui.profile", "t": "api.POST /api/admin/tunnel/stop"}, {"kind": "call", "label": "app.js:1158", "s": "ui.map", "t": "api.PATCH /api/projects/{pid}"}, {"kind": "call", "label": "app.js:1171", "s": "ui.profile", "t": "api.PATCH /api/admin/integrations"}, {"kind": "call", "label": "app.js:1191", "s": "ui.profile", "t": "api.PATCH /api/settings"}, {"kind": "call", "label": "app.js:1195", "s": "ui.profile", "t": "api.POST /api/admin/users/{uid}/password"}, {"kind": "call", "label": "app.js:1202", "s": "ui.map", "t": "api.POST /api/projects"}, {"kind": "call", "label": "app.js:1206", "s": "ui.profile", "t": "api.PATCH /api/me/password"}, {"kind": "call", "label": "app.js:1207", "s": "ui.profile", "t": "api.POST /api/users"}, {"kind": "call", "label": "app.js:1210", "s": "ui.profile", "t": "api.POST /api/projects"}, {"kind": "call", "label": "app.js:1237", "s": "ui.board", "t": "api.GET /api/search"}, {"kind": "call", "label": "app.js:1281", "s": "ui.login", "t": "api.GET /api/health"}, {"kind": "call", "label": "uploadGroup", "s": "ui.sheet", "t": "api.POST /api/photos"}, {"kind": "call", "label": "uploadGroup", "s": "ui.queue", "t": "api.POST /api/photos"}, {"kind": "call", "label": "<img src>", "s": "ui.board", "t": "api.GET /files/{pid}"}, {"kind": "call", "label": "<img src>", "s": "ui.gallery", "t": "api.GET /files/{pid}"}, {"kind": "call", "label": "<img src>", "s": "ui.sheet", "t": "api.GET /files/{pid}"}, {"kind": "call", "label": "<img src>", "s": "ui.map", "t": "api.GET /files/{pid}"}, {"kind": "call", "label": "<img src>", "s": "ui.report", "t": "api.GET /files/{pid}"}, {"kind": "call", "label": "<img src>", "s": "ui.sheet", "t": "api.GET /files/signature/{tid}"}, {"kind": "call", "label": "<img src>", "s": "ui.report", "t": "api.GET /files/signature/{tid}"}, {"kind": "call", "label": "Yedek indir bağlantısı", "s": "ui.profile", "t": "api.GET /api/backup"}, {"kind": "call", "label": "EventSource", "s": "ui.shell", "t": "api.events"}, {"kind": "event", "label": "değişiklik → yeniden yükle", "s": "api.events", "t": "ui.shell"}, {"kind": "call", "label": "çevrimdışıyken", "s": "ui.camera", "t": "ui.queue"}, {"kind": "call", "label": "önbellek", "s": "ui.sw", "t": "api.GET /files/{pid}"}, {"kind": "call", "label": "son veri önbelleği", "s": "ui.sw", "t": "api.GET /api/bootstrap"}, {"kind": "read", "label": "", "s": "api.GET /api/health", "t": "tbl.users"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /api/health"}, {"kind": "write", "label": "", "s": "api.POST /api/setup", "t": "tbl.sessions"}, {"kind": "write", "label": "", "s": "api.POST /api/setup", "t": "tbl.settings"}, {"kind": "write", "label": "", "s": "api.POST /api/setup", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.POST /api/setup", "t": "mod.auth"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/setup", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/setup"}, {"kind": "read", "label": "", "s": "api.POST /api/login", "t": "tbl.users"}, {"kind": "write", "label": "", "s": "api.POST /api/login", "t": "tbl.sessions"}, {"kind": "use", "label": "", "s": "api.POST /api/login", "t": "mod.auth"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/login"}, {"kind": "write", "label": "", "s": "api.POST /api/logout", "t": "tbl.sessions"}, {"kind": "use", "label": "", "s": "api.POST /api/logout", "t": "mod.auth"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/logout"}, {"kind": "write", "label": "", "s": "api.PATCH /api/me/password", "t": "tbl.sessions"}, {"kind": "write", "label": "", "s": "api.PATCH /api/me/password", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.PATCH /api/me/password", "t": "mod.auth"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.PATCH /api/me/password"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.activity"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.ai_reviews"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.annotations"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.checklist"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.comments"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.photos"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.projects"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.settings"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.signatures"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.task_photos"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.tasks"}, {"kind": "read", "label": "", "s": "api.GET /api/bootstrap", "t": "tbl.users"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /api/bootstrap"}, {"kind": "read", "label": "", "s": "api.GET /api/search", "t": "tbl.annotations"}, {"kind": "read", "label": "", "s": "api.GET /api/search", "t": "tbl.comments"}, {"kind": "read", "label": "", "s": "api.GET /api/search", "t": "tbl.task_photos"}, {"kind": "read", "label": "", "s": "api.GET /api/search", "t": "tbl.tasks"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /api/search"}, {"kind": "write", "label": "", "s": "api.POST /api/users", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.POST /api/users", "t": "mod.auth"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/users", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/users"}, {"kind": "write", "label": "", "s": "api.POST /api/projects", "t": "tbl.projects"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/projects", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/projects"}, {"kind": "write", "label": "", "s": "api.PATCH /api/projects/{pid}", "t": "tbl.projects"}, {"kind": "event", "label": "olay yayını", "s": "api.PATCH /api/projects/{pid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.PATCH /api/projects/{pid}"}, {"kind": "read", "label": "", "s": "api.GET /api/geocode", "t": "tbl.geocode_cache"}, {"kind": "use", "label": "adres bul", "s": "api.GET /api/geocode", "t": "mod.geo"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /api/geocode"}, {"kind": "write", "label": "", "s": "api.PATCH /api/settings", "t": "tbl.settings"}, {"kind": "event", "label": "olay yayını", "s": "api.PATCH /api/settings", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.PATCH /api/settings"}, {"kind": "read", "label": "", "s": "api.POST /api/tasks", "t": "tbl.projects"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks", "t": "tbl.settings"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/tasks", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/tasks"}, {"kind": "read", "label": "", "s": "api.PATCH /api/tasks/{tid}", "t": "tbl.users"}, {"kind": "write", "label": "", "s": "api.PATCH /api/tasks/{tid}", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.PATCH /api/tasks/{tid}", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.PATCH /api/tasks/{tid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.PATCH /api/tasks/{tid}"}, {"kind": "read", "label": "", "s": "api.POST /api/tasks/{tid}/claim", "t": "tbl.users"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/claim", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/claim", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/tasks/{tid}/claim", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/tasks/{tid}/claim"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/review", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/review", "t": "tbl.comments"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/review", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/tasks/{tid}/review", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/tasks/{tid}/review"}, {"kind": "write", "label": "", "s": "api.DELETE /api/tasks/{tid}", "t": "tbl.checklist"}, {"kind": "write", "label": "", "s": "api.DELETE /api/tasks/{tid}", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.DELETE /api/tasks/{tid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.DELETE /api/tasks/{tid}"}, {"kind": "read", "label": "", "s": "api.POST /api/photos", "t": "tbl.checklist"}, {"kind": "write", "label": "", "s": "api.POST /api/photos", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/photos", "t": "tbl.photos"}, {"kind": "write", "label": "", "s": "api.POST /api/photos", "t": "tbl.projects"}, {"kind": "write", "label": "", "s": "api.POST /api/photos", "t": "tbl.settings"}, {"kind": "write", "label": "", "s": "api.POST /api/photos", "t": "tbl.task_photos"}, {"kind": "write", "label": "", "s": "api.POST /api/photos", "t": "tbl.tasks"}, {"kind": "use", "label": "", "s": "api.POST /api/photos", "t": "mod.images"}, {"kind": "use", "label": "adres kuyruğuna ekle", "s": "api.POST /api/photos", "t": "mod.geo"}, {"kind": "use", "label": "uzaklık uyarısı", "s": "api.POST /api/photos", "t": "mod.geo"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/photos", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/photos"}, {"kind": "write", "label": "", "s": "api.DELETE /api/tasks/{tid}/photos/{pid}", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.DELETE /api/tasks/{tid}/photos/{pid}", "t": "tbl.checklist"}, {"kind": "write", "label": "", "s": "api.DELETE /api/tasks/{tid}/photos/{pid}", "t": "tbl.task_photos"}, {"kind": "write", "label": "", "s": "api.DELETE /api/tasks/{tid}/photos/{pid}", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.DELETE /api/tasks/{tid}/photos/{pid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.DELETE /api/tasks/{tid}/photos/{pid}"}, {"kind": "read", "label": "", "s": "api.GET /files/{pid}", "t": "tbl.photos"}, {"kind": "read", "label": "", "s": "api.GET /files/{pid}", "t": "tbl.task_photos"}, {"kind": "read", "label": "", "s": "api.GET /files/{pid}", "t": "tbl.tasks"}, {"kind": "read", "label": "", "s": "api.GET /files/{pid}", "t": "data.photos"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /files/{pid}"}, {"kind": "read", "label": "", "s": "api.POST /api/photos/{pid}/annotations", "t": "tbl.task_photos"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/annotations", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/annotations", "t": "tbl.annotations"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/annotations", "t": "tbl.comments"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/annotations", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/photos/{pid}/annotations", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/photos/{pid}/annotations"}, {"kind": "write", "label": "", "s": "api.DELETE /api/annotations/{aid}", "t": "tbl.annotations"}, {"kind": "event", "label": "olay yayını", "s": "api.DELETE /api/annotations/{aid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.DELETE /api/annotations/{aid}"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/comments", "t": "tbl.comments"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/comments", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/tasks/{tid}/comments", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/tasks/{tid}/comments"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/checklist", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/checklist", "t": "tbl.checklist"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/checklist", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/tasks/{tid}/checklist", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/tasks/{tid}/checklist"}, {"kind": "read", "label": "", "s": "api.PATCH /api/checklist/{cid}", "t": "tbl.settings"}, {"kind": "read", "label": "", "s": "api.PATCH /api/checklist/{cid}", "t": "tbl.task_photos"}, {"kind": "write", "label": "", "s": "api.PATCH /api/checklist/{cid}", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.PATCH /api/checklist/{cid}", "t": "tbl.checklist"}, {"kind": "write", "label": "", "s": "api.PATCH /api/checklist/{cid}", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.PATCH /api/checklist/{cid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.PATCH /api/checklist/{cid}"}, {"kind": "write", "label": "", "s": "api.DELETE /api/checklist/{cid}", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.DELETE /api/checklist/{cid}", "t": "tbl.checklist"}, {"kind": "write", "label": "", "s": "api.DELETE /api/checklist/{cid}", "t": "tbl.tasks"}, {"kind": "event", "label": "olay yayını", "s": "api.DELETE /api/checklist/{cid}", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.DELETE /api/checklist/{cid}"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/signature", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/signature", "t": "tbl.signatures"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/signature", "t": "tbl.tasks"}, {"kind": "use", "label": "", "s": "api.POST /api/tasks/{tid}/signature", "t": "mod.images"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/tasks/{tid}/signature", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/tasks/{tid}/signature"}, {"kind": "read", "label": "", "s": "api.GET /files/signature/{tid}", "t": "tbl.signatures"}, {"kind": "read", "label": "", "s": "api.GET /files/signature/{tid}", "t": "tbl.tasks"}, {"kind": "read", "label": "", "s": "api.GET /files/signature/{tid}", "t": "data.sigs"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /files/signature/{tid}"}, {"kind": "read", "label": "", "s": "api.GET /api/backup", "t": "data.db"}, {"kind": "read", "label": "", "s": "api.GET /api/backup", "t": "data.photos"}, {"kind": "read", "label": "", "s": "api.GET /api/backup", "t": "data.sigs"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /api/backup"}, {"kind": "read", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.photos"}, {"kind": "read", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.projects"}, {"kind": "read", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.settings"}, {"kind": "read", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.task_photos"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.activity"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.ai_reviews"}, {"kind": "write", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "tbl.tasks"}, {"kind": "use", "label": "gözlem iste", "s": "api.POST /api/photos/{pid}/ai-review", "t": "mod.ai"}, {"kind": "use", "label": "", "s": "api.POST /api/photos/{pid}/ai-review", "t": "mod.secrets"}, {"kind": "event", "label": "olay yayını", "s": "api.POST /api/photos/{pid}/ai-review", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/photos/{pid}/ai-review"}, {"kind": "read", "label": "", "s": "api.GET /api/admin/integrations", "t": "tbl.settings"}, {"kind": "read", "label": "", "s": "api.GET /api/admin/integrations", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.GET /api/admin/integrations", "t": "mod.auth"}, {"kind": "use", "label": "", "s": "api.GET /api/admin/integrations", "t": "mod.secrets"}, {"kind": "use", "label": "", "s": "api.GET /api/admin/integrations", "t": "mod.tunnel"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.GET /api/admin/integrations"}, {"kind": "read", "label": "", "s": "api.PATCH /api/admin/integrations", "t": "tbl.users"}, {"kind": "write", "label": "", "s": "api.PATCH /api/admin/integrations", "t": "tbl.settings"}, {"kind": "use", "label": "", "s": "api.PATCH /api/admin/integrations", "t": "mod.auth"}, {"kind": "use", "label": "", "s": "api.PATCH /api/admin/integrations", "t": "mod.secrets"}, {"kind": "use", "label": "", "s": "api.PATCH /api/admin/integrations", "t": "mod.tunnel"}, {"kind": "event", "label": "olay yayını", "s": "api.PATCH /api/admin/integrations", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.PATCH /api/admin/integrations"}, {"kind": "read", "label": "", "s": "api.POST /api/admin/tunnel/start", "t": "tbl.settings"}, {"kind": "read", "label": "", "s": "api.POST /api/admin/tunnel/start", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/tunnel/start", "t": "mod.auth"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/tunnel/start", "t": "mod.secrets"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/tunnel/start", "t": "mod.tunnel"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/admin/tunnel/start"}, {"kind": "read", "label": "", "s": "api.POST /api/admin/tunnel/stop", "t": "tbl.settings"}, {"kind": "read", "label": "", "s": "api.POST /api/admin/tunnel/stop", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/tunnel/stop", "t": "mod.auth"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/tunnel/stop", "t": "mod.secrets"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/tunnel/stop", "t": "mod.tunnel"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/admin/tunnel/stop"}, {"kind": "write", "label": "", "s": "api.POST /api/admin/users/{uid}/password", "t": "tbl.sessions"}, {"kind": "write", "label": "", "s": "api.POST /api/admin/users/{uid}/password", "t": "tbl.users"}, {"kind": "use", "label": "", "s": "api.POST /api/admin/users/{uid}/password", "t": "mod.auth"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.POST /api/admin/users/{uid}/password"}, {"kind": "write", "label": "", "s": "api.POST /api/tasks/{tid}/signature", "t": "data.sigs"}, {"kind": "write", "label": "tam boy + küçük resim", "s": "mod.images", "t": "data.photos"}, {"kind": "external", "label": "koordinat → adres", "s": "mod.geo", "t": "ext.nominatim"}, {"kind": "external", "label": "fotoğraf (EXIF'siz) + bağlam", "s": "mod.ai", "t": "ext.openai"}, {"kind": "use", "label": "EXIF silme", "s": "mod.ai", "t": "mod.images"}, {"kind": "external", "label": "cloudflared tunnel", "s": "mod.tunnel", "t": "ext.cloudflare"}, {"kind": "external", "label": "resolv.conf (DNS)", "s": "mod.tunnel", "t": "ext.termux"}, {"kind": "write", "label": "", "s": "mod.secrets", "t": "data.secrets"}, {"kind": "use", "label": "açılışta tünel", "s": "mod.main", "t": "mod.tunnel"}, {"kind": "write", "label": "", "s": "mod.geo", "t": "tbl.photos"}, {"kind": "write", "label": "", "s": "mod.geo", "t": "tbl.projects"}, {"kind": "write", "label": "", "s": "mod.geo", "t": "tbl.geocode_cache"}, {"kind": "event", "label": "adres bulundu", "s": "mod.geo", "t": "api.events"}, {"kind": "route", "label": "", "s": "mod.server", "t": "api.events"}, {"kind": "write", "label": "bağlantı + göç", "s": "mod.db", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.users", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.sessions", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.projects", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.tasks", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.photos", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.task_photos", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.annotations", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.comments", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.checklist", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.activity", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.signatures", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.settings", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.geocode_cache", "t": "data.db"}, {"kind": "contain", "label": "", "s": "tbl.ai_reviews", "t": "data.db"}, {"kind": "use", "label": "sunucuyu başlatır", "s": "mod.main", "t": "mod.server"}, {"kind": "write", "label": "kurulum kodu (özet)", "s": "mod.main", "t": "tbl.settings"}, {"kind": "use", "label": "oturum kontrolü", "s": "mod.server", "t": "mod.auth"}, {"kind": "use", "label": "", "s": "mod.server", "t": "mod.db"}, {"kind": "external", "label": "fotoğraf çek", "s": "ui.camera", "t": "ext.camera"}, {"kind": "external", "label": "en yakın müşteri", "s": "ui.camera", "t": "ext.gps"}, {"kind": "external", "label": "", "s": "ui.sheet", "t": "ext.camera"}, {"kind": "external", "label": "çekim anı konumu", "s": "ui.sheet", "t": "ext.gps"}, {"kind": "external", "label": "mavi nokta", "s": "ui.map", "t": "ext.gps"}, {"kind": "external", "label": "harita karoları", "s": "ui.map", "t": "ext.osm"}, {"kind": "external", "label": "yol tarifi", "s": "ui.map", "t": "ext.gmaps"}, {"kind": "external", "label": "karo önbelleği", "s": "ui.sw", "t": "ext.osm"}, {"kind": "external", "label": "git clone / pull", "s": "ops.install", "t": "ext.github"}, {"kind": "use", "label": "", "s": "ops.install", "t": "ops.termux"}, {"kind": "external", "label": "pkg install", "s": "ops.termux", "t": "ext.termux"}, {"kind": "use", "label": "fototakip komutu", "s": "ops.termux", "t": "mod.main"}, {"kind": "external", "label": "fototakip-tunel", "s": "ops.termux", "t": "ext.cloudflare"}, {"kind": "external", "label": "git push + doğrulama", "s": "ops.upload", "t": "ext.github"}, {"kind": "use", "label": "önce yedek", "s": "ops.reset", "t": "ops.backup"}, {"kind": "write", "label": "siler", "s": "ops.reset", "t": "data.db"}, {"kind": "write", "label": "siler", "s": "ops.reset", "t": "data.secrets"}, {"kind": "external", "label": "DNS geri", "s": "ops.reset", "t": "ext.termux"}, {"kind": "read", "label": "", "s": "ops.backup", "t": "data.db"}, {"kind": "read", "label": "", "s": "ops.backup", "t": "data.photos"}, {"kind": "read", "label": "", "s": "ops.backup", "t": "data.sigs"}, {"kind": "use", "label": "her push", "s": "ext.github", "t": "ops.ci"}, {"kind": "use", "label": "", "s": "ops.ci", "t": "ops.tests"}, {"kind": "use", "label": "gerçek sunucu", "s": "ops.tests", "t": "mod.server"}], "flows": [{"id": "photo", "name": "Fotoğraftan iş", "steps": [{"id": "ext.camera", "text": "Teknisyen fotoğrafı çeker."}, {"id": "ui.camera", "text": "Kamera ekranı konumdan en yakın müşteriyi seçer."}, {"id": "ext.gps", "text": "Çekim anının cihaz konumu ve doğruluğu alınır."}, {"id": "api.POST /api/photos", "text": "Fotoğraf ham bayt olarak yüklenir; tür ve konum sorgu dizesinde."}, {"id": "mod.images", "text": "Tür doğrulanır, EXIF okunur, döndürülür, küçültülür."}, {"id": "data.photos", "text": "Dosya EXIF'siz kaydedilir; konum dosyada kalmaz."}, {"id": "tbl.tasks", "text": "Yeni iş açılır, numara verilir."}, {"id": "tbl.photos", "text": "Konum kaynağı yazılır: EXIF, cihaz ya da proje."}, {"id": "mod.geo", "text": "Adres işçisi kuyruğa alır; uzaklık 500 m'yi geçerse uyarı."}, {"id": "ext.nominatim", "text": "Koordinat adrese çevrilir (önbellekte yoksa)."}, {"id": "tbl.projects", "text": "Müşterinin adresi boşsa doldurulur, farklıysa öneri yazılır."}, {"id": "api.events", "text": "Değişiklik tüm açık ekranlara duyurulur."}, {"id": "ui.shell", "text": "Diğer telefonlarda pano kendini yeniler."}]}, {"id": "review", "name": "Onay / geri gönderme", "steps": [{"id": "ui.sheet", "text": "Teknisyen \"sonra\" fotoğrafı ekler."}, {"id": "api.POST /api/photos", "text": "Otomasyon kontrolü: önce fotoğrafı ve zorunlu kanıtlar var mı?"}, {"id": "tbl.checklist", "text": "Zorunlu maddelerin kanıtı aranır."}, {"id": "tbl.tasks", "text": "Koşul tamamsa iş \"Onay bekliyor\"a geçer."}, {"id": "api.events", "text": "Yöneticinin ekranına düşer."}, {"id": "ui.sheet", "text": "Yönetici önce/sonra kaydırıcısıyla inceler."}, {"id": "api.POST /api/tasks/{tid}/review", "text": "Onay ya da gerekçeli geri gönderme."}, {"id": "tbl.comments", "text": "Geri gönderme nedeni yoruma yazılır."}, {"id": "tbl.activity", "text": "Karar etkinlik geçmişine girer."}, {"id": "ui.shell", "text": "Teknisyenin kartında \"Geri gönderildi\" görünür."}]}, {"id": "customer", "name": "Haritadan müşteri", "steps": [{"id": "ui.map", "text": "Yönetici \"+\" ile haritaya dokunur ya da bulunduğu yeri kullanır."}, {"id": "ext.gps", "text": "Bulunduğu yerin konumu."}, {"id": "api.GET /api/geocode", "text": "Nokta adrese çevrilmek istenir."}, {"id": "tbl.geocode_cache", "text": "Önce önbelleğe bakılır."}, {"id": "ext.nominatim", "text": "Yoksa Nominatim'e sorulur."}, {"id": "api.POST /api/projects", "text": "Müşteri adres ve konum kaynağıyla kaydedilir."}, {"id": "tbl.projects", "text": "Yeni pin haritada belirir."}]}, {"id": "offline", "name": "Çevrimdışı yükleme", "steps": [{"id": "ui.camera", "text": "Sahada internet yok."}, {"id": "ui.queue", "text": "Fotoğraflar IndexedDB kuyruğuna yazılır."}, {"id": "ui.shell", "text": "Bağlantı gelince \"online\" olayı tetiklenir."}, {"id": "api.POST /api/photos", "text": "Kuyruk sırayla yüklenir; yarıda kalırsa kalan kısım yeniden kuyruğa girer."}, {"id": "tbl.tasks", "text": "İşler oluşur."}, {"id": "api.events", "text": "Ekip haberdar olur."}]}, {"id": "ai", "name": "AI fotoğraf incelemesi", "steps": [{"id": "ui.sheet", "text": "Kişi fotoğrafta \"AI gözlemi al\"a dokunur."}, {"id": "api.POST /api/photos/{pid}/ai-review", "text": "Yetki ve ayar kontrolü: AI açık mı, fotoğraf bu işe ait mi?"}, {"id": "tbl.ai_reviews", "text": "Önceden inceleme varsa tekrar ücret ödenmez, önbellekten döner."}, {"id": "mod.secrets", "text": "Anahtar gizli dosyadan okunur."}, {"id": "mod.images", "text": "JPEG'den EXIF ve konum silinir."}, {"id": "mod.ai", "text": "Fotoğraf ve iş bağlamı gönderilir."}, {"id": "ext.openai", "text": "Model gözlemleri JSON olarak döner."}, {"id": "mod.ai", "text": "Çıktı dar şemaya indirilir; \"insan incelemesi zorunlu\" her zaman doğru."}, {"id": "tbl.ai_reviews", "text": "Sonuç saklanır."}, {"id": "tbl.activity", "text": "Etkinlik geçmişine \"AI gözlemi alındı\" yazılır."}, {"id": "api.events", "text": "Ekip haberdar olur; karar yine yöneticide."}]}, {"id": "tunnel", "name": "Dışarıdan erişim", "steps": [{"id": "ui.profile", "text": "Yönetici Entegrasyonlar'da tünel türünü seçer."}, {"id": "api.PATCH /api/admin/integrations", "text": "Ayar kaydedilir; token varsa gizli dosyaya yazılır."}, {"id": "mod.secrets", "text": "Token 0600 izinli dosyada."}, {"id": "api.POST /api/admin/tunnel/start", "text": "Başlatma isteği."}, {"id": "tbl.users", "text": "Eski kurulumdan kalan demo1234 parolalı hesap varsa tünel açılmaz."}, {"id": "mod.tunnel", "text": "cloudflared arka planda başlatılır; token komut satırına yazılmaz."}, {"id": "ext.termux", "text": "Gerekirse DNS (ör. OpenDNS) resolv.conf'tan okunur."}, {"id": "ext.cloudflare", "text": "Telefondan dışarıya şifreli bağlantı; port açmak gerekmez."}, {"id": "ui.profile", "text": "https://… adresi ekranda görünür, kopyalanır."}]}, {"id": "install", "name": "Kurulum ve yayın", "steps": [{"id": "ops.upload", "text": "Kod GitHub'a gönderilir; önce \"zaten yüklü mü\" kontrolü."}, {"id": "ext.github", "text": "Depo güncellenir."}, {"id": "ops.ci", "text": "GitHub Actions testleri çalıştırır."}, {"id": "ops.install", "text": "Telefonda tek satırlık kurulum."}, {"id": "ops.termux", "text": "Paketler ve komutlar kurulur."}, {"id": "ext.termux", "text": "Termux:Boot ile açılışta başlar."}, {"id": "mod.main", "text": "fototakip komutu sunucuyu açar; veritabanı boşsa kurulum kodu yazar."}, {"id": "mod.db", "text": "Veritabanı gerekiyorsa yeni sürüme taşınır."}, {"id": "mod.server", "text": "http://localhost:8080 hazır."}, {"id": "ui.login", "text": "İlk açılışta kurulum kodu ile yönetici hesabı açılır."}, {"id": "api.POST /api/setup", "text": "Kod doğrulanır (5 hata sınırı), ilk yönetici oluşur, kod silinir."}, {"id": "tbl.users", "text": "İlk ve tek hazır hesap."}]}], "nodes": [{"deg": 2, "desc": "Tarayıcının dosya seçicisi kamerayı açar (capture=\"environment\"). Fotoğraf EXIF ile gelir; Android bazen konumu siler.", "file": null, "id": "ext.camera", "kind": "device", "label": "Telefon kamerası", "layer": 0, "line": null}, {"deg": 3, "desc": "navigator.geolocation. Yalnızca güvenli bağlantıda (localhost veya HTTPS) çalışır.", "file": null, "id": "ext.gps", "kind": "device", "label": "Telefon GPS", "layer": 0, "line": null}, {"deg": 2, "desc": "tile.openstreetmap.org. Harita görüntüsü; bakılan karolar service worker önbelleğinde tutulur.", "file": null, "id": "ext.osm", "kind": "external", "label": "OpenStreetMap karoları", "layer": 0, "line": null}, {"deg": 1, "desc": "OpenStreetMap ters geocoding: koordinat → adres. Saniyede en fazla 1 istek, sonuçlar geocode_cache tablosunda.", "file": null, "id": "ext.nominatim", "kind": "external", "label": "Nominatim", "layer": 0, "line": null}, {"deg": 1, "desc": "Yalnızca \"Yol tarifi\" bağlantısı; uygulama Google'a veri göndermez.", "file": null, "id": "ext.gmaps", "kind": "external", "label": "Google Haritalar", "layer": 0, "line": null}, {"deg": 2, "desc": "fototakip-tunel komutu: diğer telefonlar için geçici HTTPS adresi.", "file": null, "id": "ext.cloudflare", "kind": "external", "label": "Cloudflare tüneli", "layer": 0, "line": null}, {"deg": 3, "desc": "FotoTakip deposu. Kurulum buradan indirir, yükleme betiği buraya gönderir, CI burada çalışır.", "file": null, "id": "ext.github", "kind": "external", "label": "GitHub", "layer": 0, "line": null}, {"deg": 3, "desc": "Sunucunun çalıştığı ortam. pkg ile python, python-pillow, git, cloudflared kurulur; DNS ayarı $PREFIX/etc/resolv.conf.", "file": null, "id": "ext.termux", "kind": "device", "label": "Termux + Android", "layer": 0, "line": null}, {"deg": 1, "desc": "İsteğe bağlı AI fotoğraf incelemesi. Fotoğraf konumsuz gönderilir; karar vermez, gözlem notu üretir.", "file": null, "id": "ext.openai", "kind": "external", "label": "OpenAI", "layer": 0, "line": null}, {"deg": 3, "desc": "Kullanıcı adı ve parola. Hiç hesap yoksa ilk kurulum formu: kurulum kodu + ilk yönetici.", "file": "web/app.js", "id": "ui.login", "kind": "ui", "label": "Giriş ekranı", "layer": 1, "line": 262}, {"deg": 3, "desc": "Tüm veriyi /api/bootstrap ile yükler, canlı olayları dinler, değişince yeniden yükler.", "file": "web/app.js", "id": "ui.shell", "kind": "ui", "label": "Uygulama kabuğu", "layer": 1, "line": 113}, {"deg": 4, "desc": "Kanban sürükle-bırak, mobilde kaydırma, arama, havuz ve Üstlen.", "file": "web/app.js", "id": "ui.board", "kind": "ui", "label": "Pano · liste · takvim", "layer": 1, "line": 325}, {"deg": 18, "desc": "Fotoğraf görüntüleyici, işaretleme, önce/sonra, kontrol listesi, yorum, imza, onay.", "file": "web/app.js", "id": "ui.sheet", "kind": "ui", "label": "İş ayrıntısı", "layer": 1, "line": 840}, {"deg": 4, "desc": "Fotoğraftan iş açar; en yakın müşteriyi konumdan seçer.", "file": "web/app.js", "id": "ui.camera", "kind": "ui", "label": "Kamera", "layer": 1, "line": 433}, {"deg": 2, "desc": "IndexedDB. Bağlantı yokken fotoğrafları tutar, gelince sırayla yükler.", "file": "web/app.js", "id": "ui.queue", "kind": "ui", "label": "Çevrimdışı kuyruk", "layer": 1, "line": 176}, {"deg": 1, "desc": "Fotoğraflar türe göre süzülür.", "file": "web/app.js", "id": "ui.gallery", "kind": "ui", "label": "Galeri", "layer": 1, "line": 394}, {"deg": 7, "desc": "Leaflet + OSM: müşteri pinleri, mavi nokta, fotoğraf katmanı, haritadan müşteri ekleme.", "file": "web/app.js", "id": "ui.map", "kind": "ui", "label": "Harita", "layer": 1, "line": 479}, {"deg": 2, "desc": "Önce/sonra çiftleri ve imzalarla müşteri teslim belgesi.", "file": "web/app.js", "id": "ui.report", "kind": "ui", "label": "Rapor", "layer": 1, "line": 678}, {"deg": 11, "desc": "Ekip, yeni proje, otomasyon, yedek, parola, çevrimdışı test modu.", "file": "web/app.js", "id": "ui.profile", "kind": "ui", "label": "Profil ve ayarlar", "layer": 1, "line": 705}, {"deg": 3, "desc": "sw.js: uygulama kabuğu, son veri ve harita karoları önbelleği.", "file": "web/sw.js", "id": "ui.sw", "kind": "ui", "label": "Service worker", "layer": 1, "line": 1}, {"auth": false, "deg": 3, "desc": "", "file": "fototakip/api.py", "fn": "health", "id": "api.GET /api/health", "kind": "api", "label": "GET /api/health", "layer": 2, "line": 122, "method": "GET"}, {"auth": false, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "first_setup", "id": "api.POST /api/setup", "kind": "api", "label": "POST /api/setup", "layer": 2, "line": 157, "method": "POST"}, {"auth": false, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "login", "id": "api.POST /api/login", "kind": "api", "label": "POST /api/login", "layer": 2, "line": 206, "method": "POST"}, {"auth": true, "deg": 4, "desc": "", "file": "fototakip/api.py", "fn": "logout", "id": "api.POST /api/logout", "kind": "api", "label": "POST /api/logout", "layer": 2, "line": 231, "method": "POST"}, {"auth": true, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "change_password", "id": "api.PATCH /api/me/password", "kind": "api", "label": "PATCH /api/me/password", "layer": 2, "line": 238, "method": "PATCH"}, {"auth": true, "deg": 15, "desc": "", "file": "fototakip/api.py", "fn": "bootstrap", "id": "api.GET /api/bootstrap", "kind": "api", "label": "GET /api/bootstrap", "layer": 2, "line": 255, "method": "GET"}, {"auth": true, "deg": 6, "desc": "", "file": "fototakip/api.py", "fn": "search", "id": "api.GET /api/search", "kind": "api", "label": "GET /api/search", "layer": 2, "line": 300, "method": "GET"}, {"auth": true, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "create_user", "id": "api.POST /api/users", "kind": "api", "label": "POST /api/users", "layer": 2, "line": 318, "method": "POST"}, {"auth": true, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "create_project", "id": "api.POST /api/projects", "kind": "api", "label": "POST /api/projects", "layer": 2, "line": 343, "method": "POST"}, {"auth": true, "deg": 4, "desc": "", "file": "fototakip/api.py", "fn": "update_project", "id": "api.PATCH /api/projects/{pid}", "kind": "api", "label": "PATCH /api/projects/{pid}", "layer": 2, "line": 384, "method": "PATCH"}, {"auth": true, "deg": 4, "desc": "", "file": "fototakip/api.py", "fn": "geocode", "id": "api.GET /api/geocode", "kind": "api", "label": "GET /api/geocode", "layer": 2, "line": 417, "method": "GET"}, {"auth": true, "deg": 4, "desc": "", "file": "fototakip/api.py", "fn": "update_settings", "id": "api.PATCH /api/settings", "kind": "api", "label": "PATCH /api/settings", "layer": 2, "line": 435, "method": "PATCH"}, {"auth": true, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "create_task", "id": "api.POST /api/tasks", "kind": "api", "label": "POST /api/tasks", "layer": 2, "line": 468, "method": "POST"}, {"auth": true, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "update_task", "id": "api.PATCH /api/tasks/{tid}", "kind": "api", "label": "PATCH /api/tasks/{tid}", "layer": 2, "line": 485, "method": "PATCH"}, {"auth": true, "deg": 6, "desc": "", "file": "fototakip/api.py", "fn": "claim_task", "id": "api.POST /api/tasks/{tid}/claim", "kind": "api", "label": "POST /api/tasks/{tid}/claim", "layer": 2, "line": 538, "method": "POST"}, {"auth": true, "deg": 6, "desc": "", "file": "fototakip/api.py", "fn": "review_task", "id": "api.POST /api/tasks/{tid}/review", "kind": "api", "label": "POST /api/tasks/{tid}/review", "layer": 2, "line": 551, "method": "POST"}, {"auth": true, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "delete_task", "id": "api.DELETE /api/tasks/{tid}", "kind": "api", "label": "DELETE /api/tasks/{tid}", "layer": 2, "line": 576, "method": "DELETE"}, {"auth": true, "deg": 15, "desc": "Gövde = ham fotoğraf baytları. Parametreler sorgu dizesinde.", "file": "fototakip/api.py", "fn": "upload_photo", "id": "api.POST /api/photos", "kind": "api", "label": "POST /api/photos", "layer": 2, "line": 589, "method": "POST"}, {"auth": true, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "unlink_photo", "id": "api.DELETE /api/tasks/{tid}/photos/{pid}", "kind": "api", "label": "DELETE /api/tasks/{tid}/photos/{pid}", "layer": 2, "line": 696, "method": "DELETE"}, {"auth": true, "deg": 11, "desc": "", "file": "fototakip/api.py", "fn": "photo_file", "id": "api.GET /files/{pid}", "kind": "api", "label": "GET /files/{pid}", "layer": 2, "line": 722, "method": "GET"}, {"auth": true, "deg": 8, "desc": "", "file": "fototakip/api.py", "fn": "add_annotation", "id": "api.POST /api/photos/{pid}/annotations", "kind": "api", "label": "POST /api/photos/{pid}/annotations", "layer": 2, "line": 732, "method": "POST"}, {"auth": true, "deg": 4, "desc": "", "file": "fototakip/api.py", "fn": "delete_annotation", "id": "api.DELETE /api/annotations/{aid}", "kind": "api", "label": "DELETE /api/annotations/{aid}", "layer": 2, "line": 757, "method": "DELETE"}, {"auth": true, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "add_comment", "id": "api.POST /api/tasks/{tid}/comments", "kind": "api", "label": "POST /api/tasks/{tid}/comments", "layer": 2, "line": 772, "method": "POST"}, {"auth": true, "deg": 6, "desc": "", "file": "fototakip/api.py", "fn": "add_check", "id": "api.POST /api/tasks/{tid}/checklist", "kind": "api", "label": "POST /api/tasks/{tid}/checklist", "layer": 2, "line": 784, "method": "POST"}, {"auth": true, "deg": 8, "desc": "", "file": "fototakip/api.py", "fn": "update_check", "id": "api.PATCH /api/checklist/{cid}", "kind": "api", "label": "PATCH /api/checklist/{cid}", "layer": 2, "line": 799, "method": "PATCH"}, {"auth": true, "deg": 6, "desc": "", "file": "fototakip/api.py", "fn": "delete_check", "id": "api.DELETE /api/checklist/{cid}", "kind": "api", "label": "DELETE /api/checklist/{cid}", "layer": 2, "line": 830, "method": "DELETE"}, {"auth": true, "deg": 8, "desc": "", "file": "fototakip/api.py", "fn": "save_signature", "id": "api.POST /api/tasks/{tid}/signature", "kind": "api", "label": "POST /api/tasks/{tid}/signature", "layer": 2, "line": 844, "method": "POST"}, {"auth": true, "deg": 6, "desc": "", "file": "fototakip/api.py", "fn": "signature_file", "id": "api.GET /files/signature/{tid}", "kind": "api", "label": "GET /files/signature/{tid}", "layer": 2, "line": 868, "method": "GET"}, {"auth": true, "deg": 5, "desc": "", "file": "fototakip/api.py", "fn": "backup", "id": "api.GET /api/backup", "kind": "api", "label": "GET /api/backup", "layer": 2, "line": 879, "method": "GET"}, {"auth": true, "deg": 12, "desc": "Fotoğraf için AI gözlemi. Karar vermez; yalnızca insan incelemesine not üretir.", "file": "fototakip/api.py", "fn": "ai_review_photo", "id": "api.POST /api/photos/{pid}/ai-review", "kind": "api", "label": "POST /api/photos/{pid}/ai-review", "layer": 2, "line": 906, "method": "POST"}, {"auth": true, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "get_integrations", "id": "api.GET /api/admin/integrations", "kind": "api", "label": "GET /api/admin/integrations", "layer": 2, "line": 965, "method": "GET"}, {"auth": true, "deg": 8, "desc": "", "file": "fototakip/api.py", "fn": "update_integrations", "id": "api.PATCH /api/admin/integrations", "kind": "api", "label": "PATCH /api/admin/integrations", "layer": 2, "line": 971, "method": "PATCH"}, {"auth": true, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "tunnel_start", "id": "api.POST /api/admin/tunnel/start", "kind": "api", "label": "POST /api/admin/tunnel/start", "layer": 2, "line": 1028, "method": "POST"}, {"auth": true, "deg": 7, "desc": "", "file": "fototakip/api.py", "fn": "tunnel_stop", "id": "api.POST /api/admin/tunnel/stop", "kind": "api", "label": "POST /api/admin/tunnel/stop", "layer": 2, "line": 1035, "method": "POST"}, {"auth": true, "deg": 5, "desc": "Yönetici başka bir kişinin parolasını sıfırlar (örnek hesapları kapatmak için).", "file": "fototakip/api.py", "fn": "reset_user_password", "id": "api.POST /api/admin/users/{uid}/password", "kind": "api", "label": "POST /api/admin/users/{uid}/password", "layer": 2, "line": 1042, "method": "POST"}, {"deg": 25, "desc": "Canlı olay akışı (Server-Sent Events). Her yazma işlemi buradan tüm açık ekranlara duyurulur.", "file": "fototakip/server.py", "id": "api.events", "kind": "api", "label": "GET /api/events", "layer": 2, "line": null, "method": "SSE"}, {"deg": 4, "desc": "Komut satırı: port, veri klasörü, adres servisi. Boş veritabanında tek kullanımlık kurulum kodu üretir.", "file": "fototakip/__main__.py", "id": "mod.main", "kind": "module", "label": "__main__.py", "layer": 3, "line": 1, "loc": 110}, {"deg": 40, "desc": "HTTP yönlendirici, statik dosyalar, çerez oturumu, SSE olay yayını.", "file": "fototakip/server.py", "id": "mod.server", "kind": "module", "label": "server.py", "layer": 3, "line": 1, "loc": 358}, {"deg": 11, "desc": "PBKDF2 parola özeti, 30 günlük oturumlar.", "file": "fototakip/auth.py", "id": "mod.auth", "kind": "module", "label": "auth.py", "layer": 3, "line": 1, "loc": 67}, {"deg": 4, "desc": "Tür doğrulama, EXIF okuma, döndürme, 2560 px küçültme, EXIF'siz kayıt.", "file": "fototakip/images.py", "id": "mod.images", "kind": "module", "label": "images.py", "layer": 3, "line": 1, "loc": 218}, {"deg": 8, "desc": "Uzaklık hesabı ve arka plan adres işçisi (Nominatim, önbellek, 1 istek/sn).", "file": "fototakip/geo.py", "id": "mod.geo", "kind": "module", "label": "geo.py", "layer": 3, "line": 1, "loc": 162}, {"deg": 2, "desc": "SQLite bağlantısı, şema, sürüm göçleri, yazma kilidi.", "file": "fototakip/db.py", "id": "mod.db", "kind": "module", "label": "db.py", "layer": 3, "line": 1, "loc": 244}, {"deg": 3, "desc": "OpenAI ile fotoğraf gözlemi; model çıktısını dar bir şemaya indirir, EXIF siler.", "file": "fototakip/ai_review.py", "id": "mod.ai", "kind": "module", "label": "ai_review.py", "layer": 3, "line": 1, "loc": 152}, {"deg": 7, "desc": "Ücretsiz Cloudflare tüneli (hızlı / adlandırılmış) ve Termux DNS ayarı.", "file": "fototakip/tunnel.py", "id": "mod.tunnel", "kind": "module", "label": "tunnel.py", "layer": 3, "line": 1, "loc": 181}, {"deg": 6, "desc": "OpenAI anahtarı ve tünel token'ı: 0600 izinli ayrı dosya, istemciye gitmez.", "file": "fototakip/secrets.py", "id": "mod.secrets", "kind": "module", "label": "secrets.py", "layer": 3, "line": 1, "loc": 51}, {"deg": 14, "desc": "Kişiler ve roller", "file": "fototakip/db.py", "id": "tbl.users", "kind": "table", "label": "users", "layer": 4, "line": 17}, {"deg": 6, "desc": "Oturum anahtarları", "file": "fototakip/db.py", "id": "tbl.sessions", "kind": "table", "label": "sessions", "layer": 4, "line": 26}, {"deg": 8, "desc": "Müşteriler / sahalar, konum ve adres kaynağı", "file": "fototakip/db.py", "id": "tbl.projects", "kind": "table", "label": "projects", "layer": 4, "line": 32}, {"deg": 19, "desc": "İşler, durum, sürüm", "file": "fototakip/db.py", "id": "tbl.tasks", "kind": "table", "label": "tasks", "layer": 4, "line": 43}, {"deg": 6, "desc": "Fotoğraf kaydı: konum, doğruluk, adres", "file": "fototakip/db.py", "id": "tbl.photos", "kind": "table", "label": "photos", "layer": 4, "line": 59}, {"deg": 9, "desc": "İş ↔ fotoğraf, tür", "file": "fototakip/db.py", "id": "tbl.task_photos", "kind": "table", "label": "task_photos", "layer": 4, "line": 74}, {"deg": 5, "desc": "Fotoğraf üzerindeki işaretler", "file": "fototakip/db.py", "id": "tbl.annotations", "kind": "table", "label": "annotations", "layer": 4, "line": 81}, {"deg": 6, "desc": "Yorumlar", "file": "fototakip/db.py", "id": "tbl.comments", "kind": "table", "label": "comments", "layer": 4, "line": 90}, {"deg": 8, "desc": "Kontrol maddeleri, kanıt fotoğrafı", "file": "fototakip/db.py", "id": "tbl.checklist", "kind": "table", "label": "checklist", "layer": 4, "line": 97}, {"deg": 14, "desc": "Etkinlik geçmişi", "file": "fototakip/db.py", "id": "tbl.activity", "kind": "table", "label": "activity", "layer": 4, "line": 106}, {"deg": 4, "desc": "Müşteri imzaları", "file": "fototakip/db.py", "id": "tbl.signatures", "kind": "table", "label": "signatures", "layer": 4, "line": 113}, {"deg": 13, "desc": "Otomasyon, sayaç, AI ve tünel ayarları", "file": "fototakip/db.py", "id": "tbl.settings", "kind": "table", "label": "settings", "layer": 4, "line": 119}, {"deg": 3, "desc": "Adres önbelleği (~11 m hücre)", "file": "fototakip/db.py", "id": "tbl.geocode_cache", "kind": "table", "label": "geocode_cache", "layer": 4, "line": 138}, {"deg": 3, "desc": "AI gözlemleri (fotoğraf başına önbellek)", "file": "fototakip/db.py", "id": "tbl.ai_reviews", "kind": "table", "label": "ai_reviews", "layer": 4, "line": 148}, {"deg": 18, "desc": "Tek SQLite dosyası (WAL). Tüm tablolar burada.", "file": null, "id": "data.db", "kind": "store", "label": "fototakip.db", "layer": 4, "line": null}, {"deg": 4, "desc": "Fotoğraf dosyaları ve küçük resimler.", "file": null, "id": "data.photos", "kind": "store", "label": "photos/ klasörü", "layer": 4, "line": null}, {"deg": 4, "desc": "İmza PNG dosyaları.", "file": null, "id": "data.sigs", "kind": "store", "label": "signatures/ klasörü", "layer": 4, "line": null}, {"deg": 2, "desc": "Gizli ayarlar (0600). Yedeğe girmez.", "file": null, "id": "data.secrets", "kind": "store", "label": "secrets.json", "layer": 4, "line": null}, {"deg": 2, "desc": "Tek satırlık kurulum: GitHub'dan indirir veya günceller.", "file": "scripts/install.sh", "id": "ops.install", "kind": "script", "label": "install.sh", "layer": 5, "line": 1, "loc": 64}, {"deg": 4, "desc": "Paketleri kurar, fototakip ve fototakip-tunel komutlarını, Termux:Boot başlatıcısını yazar.", "file": "scripts/install-termux.sh", "id": "ops.termux", "kind": "script", "label": "install-termux.sh", "layer": 5, "line": 1, "loc": 180}, {"deg": 1, "desc": "Yüklü mü kontrol eder, gerekiyorsa yükler ve doğrular.", "file": "scripts/github-upload.sh", "id": "ops.upload", "kind": "script", "label": "github-upload.sh", "layer": 5, "line": 1, "loc": 132}, {"deg": 4, "desc": "Veritabanı + fotoğrafları tarihli zip'e yedekler.", "file": "scripts/backup.sh", "id": "ops.backup", "kind": "script", "label": "backup.sh", "layer": 5, "line": 1, "loc": 30}, {"deg": 4, "desc": "Durdurur, yedekler, veriyi ve gizli ayarları siler, DNS'i geri alır.", "file": "scripts/sifirla.sh", "id": "ops.reset", "kind": "script", "label": "sifirla.sh", "layer": 5, "line": 1, "loc": 119}, {"deg": 2, "desc": "GitHub Actions: Python 3.11-3.13, Pillow'lu/Pillow'suz testler.", "file": ".github/workflows/ci.yml", "id": "ops.ci", "kind": "script", "label": "ci.yml", "layer": 5, "line": 1, "loc": 31}, {"deg": 2, "desc": "API, konum ve göç testleri.", "file": "tests/test_api.py", "id": "ops.tests", "kind": "script", "label": "tests/", "layer": 5, "line": 1, "loc": 342}], "sha": "9a61dbb"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script>
+(() => {
+'use strict';
+const G = JSON.parse(document.getElementById('graph').textContent);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const LAYERS = [
+  { name: 'Cihaz ve dış servisler', short: 'Dış' },
+  { name: 'Arayüz', short: 'Arayüz' },
+  { name: 'API uç noktaları', short: 'API' },
+  { name: 'Sunucu modülleri', short: 'Sunucu' },
+  { name: 'Veri', short: 'Veri' },
+  { name: 'Kurulum ve işletim', short: 'İşletim' }
+];
+const KIND = {
+  ui: { name: 'Ekran', c: '--k-ui' }, api: { name: 'Uç nokta', c: '--m-get' }, module: { name: 'Python modülü', c: '--k-module' },
+  table: { name: 'Tablo', c: '--k-table' }, store: { name: 'Dosya / veritabanı', c: '--k-store' }, external: { name: 'Dış servis', c: '--k-external' },
+  device: { name: 'Cihaz', c: '--k-device' }, script: { name: 'Betik', c: '--k-script' }
+};
+const EDGE = {
+  call: { name: 'Çağırır', c: '--e-call', on: true }, read: { name: 'Okur', c: '--e-read', on: true }, write: { name: 'Yazar', c: '--e-write', on: true },
+  event: { name: 'Olay yayınlar', c: '--e-event', on: true }, external: { name: 'Dışarıya', c: '--e-external', on: true }, use: { name: 'Kullanır', c: '--e-use', on: true },
+  route: { name: 'Yönlendirir', c: '--e-route', on: false }, contain: { name: 'İçerir', c: '--e-route', on: false }
+};
+const METHOD_C = { GET: '--m-get', POST: '--m-post', PATCH: '--m-patch', DELETE: '--m-delete', SSE: '--m-sse' };
+const byId = new Map(G.nodes.map(n => [n.id, n]));
+const out = new Map(), inc = new Map();
+G.nodes.forEach(n => { out.set(n.id, []); inc.set(n.id, []); });
+G.edges.forEach(e => { out.get(e.s).push(e); inc.get(e.t).push(e); });
+const nodeColor = n => css(n.kind === 'api' ? METHOD_C[n.method] || '--m-get' : KIND[n.kind].c);
+
+$('#meta').textContent = `kaynak ${G.sha} · ${G.nodes.length} düğüm · ${G.edges.length} bağlantı · koddan çıkarıldı`;
+
+/* ---------- yerleşim: katman başına düzlem, düzlem içinde kuvvet dengesi ---------- */
+const GAP = 9, Y0 = (LAYERS.length - 1) / 2 * GAP;
+function layout() {
+  const P = new Map();
+  const per = LAYERS.map((_, i) => G.nodes.filter(n => n.layer === i));
+  per.forEach(list => list.forEach((n, i) => {
+    const ring = list.length > 14 ? (i % 2 ? 1 : .62) : 1;
+    const a = i / list.length * Math.PI * 2 + n.layer * .7;
+    const r = (2.4 + Math.sqrt(list.length) * 1.25) * ring;
+    P.set(n.id, { x: Math.cos(a) * r, z: Math.sin(a) * r, vx: 0, vz: 0 });
+  }));
+  const springs = G.edges.filter(e => e.kind !== 'route' && e.kind !== 'contain');
+  for (let it = 0; it < 420; it++) {
+    const cool = 1 - it / 420;
+    per.forEach(list => {
+      for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+        const a = P.get(list[i].id), b = P.get(list[j].id);
+        let dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz + .01;
+        const f = 5.2 / d2;
+        a.vx += dx * f; a.vz += dz * f; b.vx -= dx * f; b.vz -= dz * f;
+      }
+    });
+    springs.forEach(e => {
+      const a = P.get(e.s), b = P.get(e.t);
+      const dx = b.x - a.x, dz = b.z - a.z;
+      a.vx += dx * .012; a.vz += dz * .012; b.vx -= dx * .012; b.vz -= dz * .012;
+    });
+    P.forEach(p => {
+      p.vx -= p.x * .018; p.vz -= p.z * .018;
+      const sp = Math.hypot(p.vx, p.vz), lim = .5 * cool + .02;
+      if (sp > lim) { p.vx *= lim / sp; p.vz *= lim / sp; }
+      p.x += p.vx; p.z += p.vz; p.vx *= .55; p.vz *= .55;
+    });
+  }
+  G.nodes.forEach(n => { const p = P.get(n.id); n.pos = new THREE.Vector3(p.x, Y0 - n.layer * GAP, p.z); });
+  return per.map(list => Math.max(4, ...list.map(n => Math.hypot(n.pos.x, n.pos.z))) + 1.6);
+}
+
+/* ---------- sahne ---------- */
+const stage = $('#stage'), host = $('#gl');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false }); } catch (e) { renderer = null; }
+if (!window.THREE || !renderer || !THREE.OrbitControls || !THREE.CSS2DRenderer) {
+  host.innerHTML = '<div class="fallback">Bu tarayıcı 3B grafik (WebGL) açamadı. Panelden düğümlere ve akışlara yine de göz atabilirsin.</div>';
+}
+const radii = window.THREE ? layout() : [];
+const scene = renderer ? new THREE.Scene() : null;
+let camera, controls, labelR, meshes = [], edgeObjs = [], layerObjs = [];
+const lbls = new Map();
+const state = { sel: null, layers: LAYERS.map(() => true), edges: Object.fromEntries(Object.entries(EDGE).map(([k, v]) => [k, v.on])), flow: null, step: -1, playing: false, rotate: !REDUCED, panelMin: false };
+
+function geomFor(n) {
+  const s = 1 + Math.min(n.deg, 30) / 60;
+  switch (n.kind) {
+    case 'ui': return new THREE.BoxGeometry(1.15 * s, .62 * s, .62 * s);
+    case 'api': return new THREE.SphereGeometry(.3 * s, 20, 14);
+    case 'module': return new THREE.OctahedronGeometry(.62 * s);
+    case 'table': return new THREE.CylinderGeometry(.42 * s, .42 * s, .48 * s, 24);
+    case 'store': return new THREE.CylinderGeometry(.7, .7, .85, 28);
+    case 'script': return new THREE.ConeGeometry(.48, .9, 6);
+    default: return new THREE.IcosahedronGeometry(.56 * s, 0);
+  }
+}
+function curveFor(a, b, kind) {
+  const m = a.clone().add(b).multiplyScalar(.5);
+  if (Math.abs(a.y - b.y) < .1) m.y += 1.6;
+  else { const out = new THREE.Vector3(m.x, 0, m.z); const l = out.length() || 1; m.addScaledVector(out.normalize(), Math.min(2.2, 1 + l * .08)); }
+  return new THREE.QuadraticBezierCurve3(a, m, b);
+}
+function build() {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  camera = new THREE.PerspectiveCamera(46, W / H, .1, 400);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(W, H);
+  host.appendChild(renderer.domElement);
+  labelR = new THREE.CSS2DRenderer();
+  labelR.setSize(W, H);
+  labelR.domElement.className = 'labels';
+  host.appendChild(labelR.domElement);
+  controls = new THREE.OrbitControls(camera, labelR.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08; controls.minDistance = 6; controls.maxDistance = 120;
+  controls.autoRotate = state.rotate; controls.autoRotateSpeed = .45;
+  controls.addEventListener('start', () => { if (state.rotate) setRotate(false); });
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, .9));
+  const dl = new THREE.DirectionalLight(0xffffff, .55); dl.position.set(10, 30, 16); scene.add(dl);
+
+  LAYERS.forEach((L, i) => {
+    const y = Y0 - i * GAP, r = radii[i];
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r, 64), new THREE.MeshBasicMaterial({ transparent: true, opacity: .06, side: THREE.DoubleSide, depthWrite: false }));
+    disc.rotation.x = -Math.PI / 2; disc.position.y = y - .55; scene.add(disc);
+    const ringPts = new THREE.EllipseCurve(0, 0, r, r).getPoints(96).map(p => new THREE.Vector3(p.x, y - .55, p.y));
+    const ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ringPts), new THREE.LineBasicMaterial({ transparent: true, opacity: .35 }));
+    scene.add(ring);
+    const el = document.createElement('div'); el.className = 'lay-lbl'; el.textContent = `${i + 1} · ${L.name}`;
+    const o = new THREE.CSS2DObject(el); o.position.set(-r * .2, y - .4, r * .98); scene.add(o);
+    layerObjs.push({ disc, ring, label: o, i });
+  });
+
+  G.nodes.forEach(n => {
+    const mat = new THREE.MeshStandardMaterial({ roughness: .55, metalness: .08, transparent: true, opacity: 1 });
+    const m = new THREE.Mesh(geomFor(n), mat);
+    m.position.copy(n.pos); m.userData.id = n.id;
+    scene.add(m); meshes.push(m); n.mesh = m;
+    const el = document.createElement('div');
+    el.className = 'lbl' + (n.kind === 'api' ? ' api' : '');
+    el.textContent = n.kind === 'api' ? n.label.replace(/^(GET|POST|PATCH|DELETE) /, (s, mm) => mm[0] + ' ') : n.label;
+    el.title = n.label;
+    el.addEventListener('click', ev => { ev.stopPropagation(); select(n.id); });
+    const o = new THREE.CSS2DObject(el); o.position.copy(n.pos); scene.add(o);
+    lbls.set(n.id, { el, o });
+  });
+
+  G.edges.forEach(e => {
+    const a = byId.get(e.s).pos, b = byId.get(e.t).pos;
+    const curve = curveFor(a, b, e.kind);
+    const g = new THREE.BufferGeometry().setFromPoints(curve.getPoints(28));
+    const line = new THREE.Line(g, new THREE.LineBasicMaterial({ transparent: true, opacity: .32, depthWrite: false }));
+    scene.add(line); edgeObjs.push({ e, line, curve });
+  });
+  // akış izi ve parçacık
+  flowLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ transparent: true, opacity: .95, linewidth: 2 }));
+  flowLine.visible = false; scene.add(flowLine);
+  pulse = new THREE.Mesh(new THREE.SphereGeometry(.26, 18, 12), new THREE.MeshBasicMaterial());
+  halo = new THREE.Mesh(new THREE.SphereGeometry(.55, 18, 12), new THREE.MeshBasicMaterial({ transparent: true, opacity: .25, depthWrite: false }));
+  pulse.visible = halo.visible = false; scene.add(pulse); scene.add(halo);
+  applyTheme(); resetView(true);
+}
+let flowLine, pulse, halo;
+
+function applyTheme() {
+  if (!scene) return;
+  scene.background = new THREE.Color(css('--stage'));
+  const ink = new THREE.Color(css('--muted'));
+  layerObjs.forEach(l => { l.disc.material.color = ink.clone(); l.ring.material.color = ink.clone(); });
+  G.nodes.forEach(n => n.mesh.material.color = new THREE.Color(nodeColor(n)));
+  edgeObjs.forEach(o => o.line.material.color = new THREE.Color(css(EDGE[o.e.kind].c)));
+  if (flowLine) { flowLine.material.color = new THREE.Color(css('--accent')); pulse.material.color = new THREE.Color(css('--accent')); halo.material.color = new THREE.Color(css('--accent')); }
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); renderPanel(); renderToolbar(); });
+new MutationObserver(() => { applyTheme(); renderPanel(); renderToolbar(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ---------- görünürlük ve vurgu ---------- */
+function visibleNode(n) { return state.layers[n.layer]; }
+function visibleEdge(e) { return state.edges[e.kind] && visibleNode(byId.get(e.s)) && visibleNode(byId.get(e.t)); }
+function focusSet() {
+  if (state.flow) return new Set(state.flow.steps.map(s => s.id));
+  if (!state.sel) return null;
+  const s = new Set([state.sel]);
+  out.get(state.sel).forEach(e => visibleEdge(e) && s.add(e.t));
+  inc.get(state.sel).forEach(e => visibleEdge(e) && s.add(e.s));
+  return s;
+}
+function refresh() {
+  if (!scene) return;
+  const F = focusSet();
+  const stepId = state.flow && state.step >= 0 ? state.flow.steps[state.step].id : null;
+  G.nodes.forEach(n => {
+    const vis = visibleNode(n);
+    n.mesh.visible = vis;
+    const on = !F || F.has(n.id);
+    n.mesh.material.opacity = on ? 1 : .13;
+    n.mesh.scale.setScalar(n.id === state.sel || n.id === stepId ? 1.35 : 1);
+    const L = lbls.get(n.id);
+    L.o.visible = vis;
+    L.el.classList.toggle('dim', !on);
+    L.el.classList.toggle('hot', n.id === state.sel);
+    L.el.classList.toggle('step', n.id === stepId);
+  });
+  edgeObjs.forEach(o => {
+    const vis = visibleEdge(o.e);
+    o.line.visible = vis;
+    if (!vis) return;
+    let op = .3;
+    if (state.flow) op = .05;
+    else if (state.sel) op = (o.e.s === state.sel || o.e.t === state.sel) ? .95 : .04;
+    o.line.material.opacity = op;
+  });
+  layerObjs.forEach(l => { const v = state.layers[l.i]; l.disc.visible = l.ring.visible = l.label.visible = v; });
+}
+function setRotate(v) { state.rotate = v; if (controls) controls.autoRotate = v; $('#b-rot').setAttribute('aria-pressed', v); }
+
+/* ---------- kamera ---------- */
+let tween = null;
+function flyTo(target, dist) {
+  if (!camera) return;
+  const from = { t: controls.target.clone(), p: camera.position.clone() };
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  const to = { t: target.clone(), p: target.clone().addScaledVector(dir, dist ?? camera.position.distanceTo(controls.target)) };
+  tween = { from, to, t0: performance.now(), dur: REDUCED ? 1 : 700 };
+}
+function resetView(instant) {
+  if (!camera) return;
+  const r = Math.max(...radii);
+  const narrow = stage.clientWidth < 600;
+  const d = (narrow ? 3.2 : 2.05) * Math.max(r, Y0 + 2);
+  const p = new THREE.Vector3(d * .55, d * .3, d * .78);
+  if (instant) { camera.position.copy(p); controls.target.set(0, narrow ? -2 : 0, 0); controls.update(); }
+  else { tween = { from: { t: controls.target.clone(), p: camera.position.clone() }, to: { t: new THREE.Vector3(0, narrow ? -2 : 0, 0), p }, t0: performance.now(), dur: 800 }; }
+}
+
+/* ---------- etkileşim ---------- */
+const ray = window.THREE ? new THREE.Raycaster() : null;
+const ptr = { x: 0, y: 0, down: null };
+function pick(ev) {
+  if (!scene) return null;
+  const r = renderer.domElement.getBoundingClientRect();
+  const v = new THREE.Vector2((ev.clientX - r.left) / r.width * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(v, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible), false)[0];
+  return hit ? hit.object.userData.id : null;
+}
+function bindPointer() {
+  const el = labelR.domElement;
+  el.addEventListener('pointerdown', ev => { ptr.down = { x: ev.clientX, y: ev.clientY }; });
+  el.addEventListener('pointerup', ev => {
+    if (!ptr.down) return;
+    const moved = Math.hypot(ev.clientX - ptr.down.x, ev.clientY - ptr.down.y);
+    ptr.down = null;
+    if (moved > 6) return;
+    const id = pick(ev);
+    if (id) select(id); else if (state.sel && !state.flow) select(null);
+  });
+  let last = 0;
+  el.addEventListener('pointermove', ev => {
+    if (ev.pointerType !== 'mouse' || ptr.down) return;
+    const t = performance.now(); if (t - last < 60) return; last = t;
+    el.style.cursor = pick(ev) ? 'pointer' : 'grab';
+  });
+}
+function select(id) {
+  if (state.flow && id) { stopFlow(false); }
+  state.sel = id;
+  if (id) { setRotate(false); const n = byId.get(id); if (!state.layers[n.layer]) { state.layers[n.layer] = true; renderToolbar(); } flyTo(n.pos, Math.min(camera ? camera.position.distanceTo(controls.target) : 30, stage.clientWidth < 600 ? 32 : 26)); state.panelMin = false; }
+  refresh(); renderPanel();
+}
+
+/* ---------- akışlar ---------- */
+let flowAnim = null;
+function startFlow(fid) {
+  const f = G.flows.find(x => x.id === fid); if (!f) return;
+  state.sel = null; state.flow = f; state.step = 0; state.playing = !REDUCED; state.panelMin = false;
+  setRotate(false);
+  if (scene) {
+    const pts = [];
+    for (let i = 0; i < f.steps.length - 1; i++) {
+      const a = byId.get(f.steps[i].id), b = byId.get(f.steps[i + 1].id);
+      const ex = G.edges.find(e => (e.s === a.id && e.t === b.id) || (e.t === a.id && e.s === b.id));
+      const c = ex ? edgeObjs.find(o => o.e === ex).curve : curveFor(a.pos, b.pos, 'flow');
+      let p = c.getPoints(24); if (ex && ex.s !== a.id) p = p.reverse();
+      pts.push(...p);
+    }
+    flowLine.geometry.dispose();
+    flowLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    flowLine.visible = pulse.visible = halo.visible = true;
+    const box = new THREE.Box3(); f.steps.forEach(s => box.expandByPoint(byId.get(s.id).pos));
+    const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+    flyTo(c, Math.max(16, size * (stage.clientWidth < 600 ? 1.5 : 1.05)));
+  }
+  goStep(0);
+}
+function stopFlow(render = true) {
+  state.flow = null; state.step = -1; state.playing = false; flowAnim = null;
+  if (scene) { flowLine.visible = pulse.visible = halo.visible = false; }
+  if (render) { refresh(); renderPanel(); }
+}
+function goStep(i) {
+  const f = state.flow; if (!f) return;
+  const prev = state.step;
+  state.step = Math.max(0, Math.min(f.steps.length - 1, i));
+  if (scene) {
+    const a = byId.get(f.steps[Math.max(0, prev)].id).pos, b = byId.get(f.steps[state.step].id).pos;
+    const ex = prev >= 0 && prev !== state.step ? G.edges.find(e => (e.s === f.steps[prev].id && e.t === f.steps[state.step].id) || (e.t === f.steps[prev].id && e.s === f.steps[state.step].id)) : null;
+    let curve = ex ? edgeObjs.find(o => o.e === ex).curve : curveFor(a, b, 'flow');
+    const rev = ex && ex.s !== f.steps[prev].id;
+    flowAnim = { curve, rev, t0: performance.now(), dur: prev === state.step || REDUCED ? 1 : 900 };
+  }
+  refresh(); renderPanel();
+}
+let playTimer = null;
+function schedule() {
+  clearTimeout(playTimer);
+  if (!state.flow || !state.playing) return;
+  playTimer = setTimeout(() => {
+    if (!state.flow || !state.playing) return;
+    if (state.step >= state.flow.steps.length - 1) { state.playing = false; renderPanel(); return; }
+    goStep(state.step + 1); schedule();
+  }, 2300);
+}
+
+/* ---------- panel ---------- */
+const kindDot = n => `<span class="kdot" style="background:${nodeColor(n)}"></span>`;
+function nodeBtn(id, tag) { const n = byId.get(id); return `<li><button data-go="${esc(id)}">${kindDot(n)}<span class="nm">${esc(n.label)}</span><span class="tag">${esc(tag || LAYERS[n.layer].short)}</span></button></li>`; }
+function groupEdges(list, side) {
+  const g = {};
+  list.forEach(e => { (g[e.kind] ||= []).push(e); });
+  return Object.entries(g).map(([k, es]) => `<div><h3>${EDGE[k].name} · ${es.length}</h3><ul class="list">${es.map(e => nodeBtn(side === 'out' ? e.t : e.s, e.label)).join('')}</ul></div>`).join('');
+}
+function renderPanel() {
+  const P = $('#panel');
+  P.classList.toggle('min', state.panelMin);
+  const handle = `<button class="sheet-handle" data-act="sheet" aria-label="${state.panelMin ? 'Paneli aç' : 'Paneli küçült'}"><span></span></button>`;
+  if (state.flow) {
+    const f = state.flow;
+    P.innerHTML = handle + `<div><div class="eyebrow">Akış · ${state.step + 1}/${f.steps.length}</div><h2>${esc(f.name)}</h2></div>
+      <div class="row"><button class="btn primary" data-act="play">${state.playing ? 'Duraklat' : state.step >= f.steps.length - 1 ? 'Baştan oynat' : 'Oynat'}</button>
+        <button class="btn" data-act="prev" aria-label="Önceki adım">‹</button><button class="btn" data-act="next" aria-label="Sonraki adım">›</button><button class="btn" data-act="close">Kapat</button></div>
+      <ol class="steps">${f.steps.map((s, i) => { const n = byId.get(s.id); return `<li class="${i === state.step ? 'on' : i < state.step ? 'done' : ''}" data-step="${i}"><span><b>${esc(n.label)}</b><span>${esc(s.text)}</span></span></li>`; }).join('')}</ol>`;
+    P.querySelector('.steps li.on')?.scrollIntoView({ block: 'nearest', behavior: REDUCED ? 'auto' : 'smooth' });
+    return;
+  }
+  if (state.sel) {
+    const n = byId.get(state.sel);
+    const o = out.get(n.id).filter(visibleEdge), i = inc.get(n.id).filter(visibleEdge);
+    const where = n.file ? `${n.file}${n.line ? ':' + n.line : ''}` : '';
+    P.innerHTML = handle + `<div><div class="eyebrow">${kindDot(n)}${esc(KIND[n.kind].name)} · ${esc(LAYERS[n.layer].name)}</div><h2>${esc(n.label)}</h2>
+      ${where ? `<div class="mono">${esc(where)}${n.loc ? ` · ${n.loc} satır` : ''}</div>` : ''}</div>
+      ${n.desc ? `<p>${esc(n.desc)}</p>` : ''}
+      ${n.kind === 'api' && n.auth === false ? '<div class="note">Giriş gerektirmez.</div>' : ''}
+      <div class="row mono">${o.length} giden · ${i.length} gelen bağlantı</div>
+      ${o.length ? `<section><h3 style="color:var(--ink)">Giden</h3>${groupEdges(o, 'out')}</section>` : ''}
+      ${i.length ? `<section><h3 style="color:var(--ink)">Gelen</h3>${groupEdges(i, 'in')}</section>` : ''}
+      <div class="row"><button class="btn" data-act="clear">Seçimi kaldır</button></div>`;
+    return;
+  }
+  const counts = LAYERS.map((_, i) => G.nodes.filter(n => n.layer === i).length);
+  const hubs = [...G.nodes].sort((a, b) => b.deg - a.deg).slice(0, 6);
+  P.innerHTML = handle + `<div><div class="eyebrow">Genel bakış</div><h2>Projede ne neye bağlı</h2></div>
+    <p>Her kat bir katman: en üstte telefon ve dış servisler, en altta kurulum betikleri. Bir düğüme dokun: neyi çağırdığını, hangi tabloya yazdığını görürsün. Bir akışı oynat: bir işlemin katmanlar arasında nasıl ilerlediğini adım adım izlersin.</p>
+    <section><h3>Akışlar</h3><div class="flows">${G.flows.map(f => `<button class="flow-btn" data-flow="${f.id}">${esc(f.name)}<span>${f.steps.length} adım</span></button>`).join('')}</div></section>
+    <section><h3>Katmanlar</h3><div class="layers">${LAYERS.map((L, i) => `<div class="layer-row"><span class="num">${i + 1}</span><b>${esc(L.name)}</b><span class="n">${counts[i]}</span></div>`).join('')}</div></section>
+    <section><h3>En çok bağlantısı olanlar</h3><ul class="list">${hubs.map(n => nodeBtn(n.id, n.deg + ' bağ')).join('')}</ul></section>
+    <section><h3>Şekiller</h3><div class="legend">${Object.entries(KIND).map(([k, v]) => `<div><span class="kdot" style="background:${css(v.c)}"></span>${v.name}</div>`).join('')}
+      <div><span class="kdot" style="background:${css('--m-get')}"></span>GET <span class="kdot" style="background:${css('--m-post')}"></span>POST <span class="kdot" style="background:${css('--m-patch')}"></span>PATCH <span class="kdot" style="background:${css('--m-delete')}"></span>DELETE</div></div></section>
+    <p class="mono">Kaynak özeti ${esc(G.sha)} (api.py, app.js, db.py ve betiklerin içeriğinden). Yeniden üretmek için: python3 tools/proje-haritasi/uret.py. Uç noktalar ve tablo erişimleri api.py'den, arayüz çağrıları app.js'den otomatik çıkarıldı; akış açıklamaları elle yazıldı.</p>`;
+}
+function renderToolbar() {
+  const T = $('#toolbar');
+  T.innerHTML = LAYERS.map((L, i) => `<button class="chip" data-layer="${i}" aria-pressed="${state.layers[i]}">${esc(L.short)}</button>`).join('')
+    + Object.entries(EDGE).map(([k, v]) => `<button class="chip" data-edge="${k}" aria-pressed="${state.edges[k]}"><span class="sw" style="background:${css(v.c)}"></span>${v.name}</button>`).join('');
+}
+
+document.addEventListener('click', ev => {
+  const go = ev.target.closest('[data-go]'); if (go) { select(go.dataset.go); return; }
+  const fl = ev.target.closest('[data-flow]'); if (fl) { startFlow(fl.dataset.flow); schedule(); return; }
+  const st = ev.target.closest('[data-step]'); if (st) { state.playing = false; goStep(+st.dataset.step); return; }
+  const ly = ev.target.closest('[data-layer]'); if (ly) { const i = +ly.dataset.layer; state.layers[i] = !state.layers[i]; if (state.sel && byId.get(state.sel).layer === i && !state.layers[i]) state.sel = null; renderToolbar(); refresh(); renderPanel(); return; }
+  const ed = ev.target.closest('[data-edge]'); if (ed) { state.edges[ed.dataset.edge] = !state.edges[ed.dataset.edge]; renderToolbar(); refresh(); renderPanel(); return; }
+  const a = ev.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act;
+  if (act === 'play') { if (state.step >= state.flow.steps.length - 1 && !state.playing) goStep(0); state.playing = !state.playing; renderPanel(); schedule(); }
+  if (act === 'prev') { state.playing = false; goStep(state.step - 1); }
+  if (act === 'next') { state.playing = false; goStep(state.step + 1); }
+  if (act === 'close') { clearTimeout(playTimer); stopFlow(); resetView(); }
+  if (act === 'clear') { select(null); resetView(); }
+  if (act === 'sheet') { state.panelMin = !state.panelMin; renderPanel(); }
+});
+$('#b-rot').addEventListener('click', () => setRotate(!state.rotate));
+$('#b-reset').addEventListener('click', () => { clearTimeout(playTimer); if (state.flow) stopFlow(); state.sel = null; refresh(); renderPanel(); resetView(); });
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') { if (state.flow) { clearTimeout(playTimer); stopFlow(); } else if (state.sel) select(null); }
+  if (state.flow && (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') && document.activeElement?.id !== 'q') { state.playing = false; goStep(state.step + (ev.key === 'ArrowRight' ? 1 : -1)); }
+});
+
+/* arama */
+const q = $('#q'), res = $('#results');
+let hits = [], hi = 0;
+const norm = s => s.toLocaleLowerCase('tr');
+function renderResults() {
+  if (!hits.length) { res.hidden = true; return; }
+  res.hidden = false;
+  res.innerHTML = hits.map((n, i) => `<button data-hit="${i}" class="${i === hi ? 'on' : ''}"><span>${kindDot(n)} ${esc(n.label)}</span><span class="lay">${esc(LAYERS[n.layer].short)}</span></button>`).join('');
+}
+q.addEventListener('input', () => {
+  const v = norm(q.value.trim());
+  hits = v ? G.nodes.filter(n => norm(n.label + ' ' + (n.desc || '') + ' ' + (n.file || '')).includes(v)).sort((a, b) => norm(a.label).indexOf(v) - norm(b.label).indexOf(v)).slice(0, 8) : [];
+  hi = 0; renderResults();
+});
+q.addEventListener('keydown', ev => {
+  if (ev.key === 'ArrowDown') { hi = Math.min(hits.length - 1, hi + 1); renderResults(); ev.preventDefault(); }
+  if (ev.key === 'ArrowUp') { hi = Math.max(0, hi - 1); renderResults(); ev.preventDefault(); }
+  if (ev.key === 'Enter' && hits[hi]) { select(hits[hi].id); hits = []; renderResults(); q.blur(); }
+  if (ev.key === 'Escape') { hits = []; renderResults(); }
+});
+res.addEventListener('click', ev => { const b = ev.target.closest('[data-hit]'); if (!b) return; select(hits[+b.dataset.hit].id); hits = []; renderResults(); q.value = ''; });
+document.addEventListener('pointerdown', ev => { if (!ev.target.closest('.search')) { hits = []; renderResults(); } });
+
+/* ---------- döngü ---------- */
+const ease = t => t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (tween) {
+    const k = Math.min(1, (now - tween.t0) / tween.dur), e = ease(k);
+    controls.target.lerpVectors(tween.from.t, tween.to.t, e);
+    camera.position.lerpVectors(tween.from.p, tween.to.p, e);
+    if (k >= 1) tween = null;
+  }
+  controls.update();
+  if (state.flow && flowAnim) {
+    const k = Math.min(1, (now - flowAnim.t0) / flowAnim.dur);
+    const p = flowAnim.curve.getPoint(flowAnim.rev ? 1 - ease(k) : ease(k));
+    pulse.position.copy(p); halo.position.copy(p);
+    halo.scale.setScalar(1 + .25 * Math.sin(now / 180));
+  }
+  // uzaktaki uç nokta etiketlerini sadeleştir
+  if (!state.sel && !state.flow) {
+    lbls.forEach((L, id) => {
+      const n = byId.get(id);
+      if (n.kind !== 'api') { L.el.style.opacity = ''; return; }
+      const d = camera.position.distanceTo(n.pos);
+      L.el.style.opacity = Math.max(.0, Math.min(1, (34 - d) / 12)).toFixed(2);
+    });
+  } else lbls.forEach(L => { L.el.style.opacity = ''; });
+  renderer.render(scene, camera);
+  labelR.render(scene, camera);
+}
+function resize() {
+  if (!camera) return;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  camera.aspect = W / H; camera.updateProjectionMatrix();
+  renderer.setSize(W, H); labelR.setSize(W, H);
+}
+new ResizeObserver(resize).observe(stage);
+
+renderToolbar(); renderPanel();
+if (scene) { build(); bindPointer(); refresh(); requestAnimationFrame(frame); }
+})();
+</script>
+
+</body>
+</html>

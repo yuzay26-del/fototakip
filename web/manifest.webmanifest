@@ -1,0 +1,15 @@
+{
+  "name": "FotoTakip",
+  "short_name": "FotoTakip",
+  "description": "Fotoğraf tabanlı saha iş takibi",
+  "lang": "tr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ECEFF1",
+  "theme_color": "#0A6890",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
