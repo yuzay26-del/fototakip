@@ -46,8 +46,8 @@ def user_for_token(con, token: str | None):
     if not token:
         return None
     row = con.execute(
-        "SELECT u.id, u.username, u.name, u.short, u.role FROM sessions s JOIN users u ON u.id = s.user_id "
-        "WHERE s.token = ? AND s.expires_at > ?",
+        "SELECT u.id, u.username, u.name, u.short, u.role, u.lead_id, u.theme FROM sessions s "
+        "JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ? AND u.active = 1",
         (token, db.now()),
     ).fetchone()
     return dict(row) if row else None

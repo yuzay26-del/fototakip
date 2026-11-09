@@ -171,7 +171,7 @@ cat <<EOF
 
   Başlat:          fototakip
   Bu telefonda:    http://localhost:$PORT
-  Dışarıdan erişim:  uygulamada Profil > Entegrasyonlar > Dışarıdan erişim
+  Dışarıdan erişim:  uygulamada Yönetim > Sistem > Dışarıdan erişim
   DNS değiştirmek:   fototakip-dns opendns
   Veriler:         $DATA_DIR
 

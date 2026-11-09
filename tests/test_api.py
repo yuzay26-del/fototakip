@@ -148,14 +148,13 @@ class ApiTest(unittest.TestCase):
         status, body = cl.call("POST", "/api/login", {"username": "yonetici", "password": "yanlis"})
         self.assertEqual(status, 401)
 
-    def test_field_sees_own_and_pool_only(self):
+    def test_field_sees_only_own_tasks(self):
         mert = self.c("saha1").boot()
         elif_ = self.c("saha2").boot()
         mgr = self.c("yonetici").boot()
         mert_ids = {t["id"] for t in mert["tasks"]}
-        for t in mgr["tasks"]:
-            visible = t["assignee_id"] in (None, mert["me"]["id"])
-            self.assertEqual(t["id"] in mert_ids, visible, t["no_label"])
+        for t in mgr["tasks"]:  # havuzdaki (atanmamış) işler de görünmez
+            self.assertEqual(t["id"] in mert_ids, t["assignee_id"] == mert["me"]["id"], t["no_label"])
         self.assertNotIn(self.task_by_no(mgr, 142)["id"], mert_ids)
         self.assertIn(self.task_by_no(mgr, 142)["id"], {t["id"] for t in elif_["tasks"]})
 
@@ -258,16 +257,17 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(status, 409)
         self.assertEqual(body["error"]["code"], "conflict")
 
-    def test_pool_claim(self):
+    def test_pool_hidden_from_field(self):
         mgr = self.c("yonetici")
         p = self.project(mgr.boot(), "Ataşehir")
         _, r = mgr.call("POST", "/api/tasks", {"project_id": p["id"], "title": "Havuz testi"})
         elif_ = self.c("saha2")
+        self.assertNotIn(r["id"], {t["id"] for t in elif_.boot()["tasks"]})
+        self.assertEqual(elif_.call("PATCH", f"/api/tasks/{r['id']}", {"title": "x"})[0], 404)
+        self.assertEqual(elif_.call("POST", f"/api/tasks/{r['id']}/claim")[0], 404)
+        saha2 = next(u["id"] for u in mgr.boot()["users"] if u["username"] == "saha2")
+        self.assertEqual(mgr.call("PATCH", f"/api/tasks/{r['id']}", {"assignee_id": saha2})[0], 200)
         self.assertIn(r["id"], {t["id"] for t in elif_.boot()["tasks"]})
-        status, body = elif_.call("PATCH", f"/api/tasks/{r['id']}", {"title": "Üstlenmeden değiştirme"})
-        self.assertEqual(status, 403)
-        self.assertEqual(elif_.call("POST", f"/api/tasks/{r['id']}/claim")[0], 200)
-        self.assertEqual(self.c("saha1").call("POST", f"/api/tasks/{r['id']}/claim")[0], 404)
 
     # ---- diğerleri ----
     def test_annotation_comment_search_signature(self):

@@ -15,7 +15,7 @@ import time
 import zipfile
 from datetime import date, datetime, timedelta
 
-from . import __version__, ai_review, auth, db, geo, images, secrets, tunnel
+from . import __version__, ai_review, auth, db, geo, images, perms, secrets, tunnel
 
 STATUSES = ("open", "progress", "review", "done")
 STATUS_NAMES = {"open": "Açık", "progress": "Devam ediyor", "review": "Onay bekliyor", "done": "Tamamlandı"}
@@ -43,8 +43,19 @@ def wo(no: int) -> str:
 
 
 def need_manager(req):
-    if req.user["role"] != "manager":
+    """Sahip ya da yönetici."""
+    if not perms.is_admin(req.user):
         raise ApiError(403, "forbidden", "Bu işlem için yönetici yetkisi gerekiyor.")
+
+
+def need_owner(req):
+    if not perms.is_owner(req.user):
+        raise ApiError(403, "forbidden", "Bu işlem yalnızca sahip hesabına açık.")
+
+
+THEMES = ("", "auto", "sade", "gece", "saha", "okyanus", "orman")
+SKILL_ICONS = ("bolt", "drop", "snow", "brush", "brick", "wifi", "wrench", "flame", "sun", "key", "cctv", "leaf")
+HEX_RE = re.compile(r"#[0-9A-Fa-f]{6}")
 
 
 def text_field(body: dict, key: str, required=True, max_len=500) -> str:
@@ -63,15 +74,19 @@ def text_field(body: dict, key: str, required=True, max_len=500) -> str:
 
 def get_task(req, task_id: str, for_write=False):
     t = req.con.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
-    if not t or not can_see(req.user, t):
+    if not t or not perms.can_see_task(req.con, req.user, t):
         raise ApiError(404, "not_found", "İş bulunamadı.")
-    if for_write and req.user["role"] != "manager" and t["assignee_id"] not in (req.user["id"],):
+    if for_write and not perms.can_write_task(req.con, req.user, t):
         raise ApiError(403, "forbidden", "Bu iş sana atanmamış. Önce işi üstlen.")
     return t
 
 
-def can_see(user, t) -> bool:
-    return user["role"] == "manager" or t["assignee_id"] in (None, user["id"])
+def skill_or_none(con, sid):
+    if sid in (None, ""):
+        return None
+    if not con.execute("SELECT 1 FROM skills WHERE id = ?", (sid,)).fetchone():
+        raise ApiError(400, "bad_skill", "Yetenek bulunamadı.")
+    return sid
 
 
 def log(con, task_id: str, by: str, text: str):
@@ -183,7 +198,7 @@ def first_setup(req):
         if not needs_setup(con):  # aynı anda iki kurulum isteği
             raise ApiError(409, "already_setup", "Kurulum zaten yapılmış.")
         con.execute("INSERT INTO users(id, username, name, short, role, pw_hash, created_at) VALUES (?,?,?,?,?,?,?)",
-                    (uid, username, name, auth.initials(name), "manager", auth.hash_password(password), db.now()))
+                    (uid, username, name, auth.initials(name), "owner", auth.hash_password(password), db.now()))
         con.execute("DELETE FROM settings WHERE key IN ('setup_code', 'setup_fails')")
     try:
         os.remove(setup_code_file(req.cfg))
@@ -222,6 +237,8 @@ def login(req):
         raise ApiError(401, "bad_credentials", "Kullanıcı adı veya parola hatalı.")
     with _FAIL_LOCK:
         _FAILS.pop(key, None)
+    if not row["active"]:
+        raise ApiError(403, "account_disabled", "Bu hesap pasif. Yöneticine başvur.")
     token = auth.create_session(req.con, row["id"])
     req.set_cookie = token
     return {"token": token, "user": {k: row[k] for k in ("id", "username", "name", "short", "role")}}
@@ -241,8 +258,8 @@ def change_password(req):
     if not auth.verify_password(body.get("old") or "", row["pw_hash"]):
         raise ApiError(400, "bad_credentials", "Mevcut parola hatalı.")
     new = body.get("new") or ""
-    if len(new) < 6:
-        raise ApiError(400, "weak_password", "Yeni parola en az 6 karakter olmalı.")
+    if len(new) < 8:
+        raise ApiError(400, "weak_password", "Yeni parola en az 8 karakter olmalı.")
     with db.tx(req.con):
         req.con.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (auth.hash_password(new), req.user["id"]))
         req.con.execute("DELETE FROM sessions WHERE user_id = ? AND token != ?", (req.user["id"], req.token))
@@ -254,13 +271,12 @@ def change_password(req):
 @route("GET", "/api/bootstrap")
 def bootstrap(req):
     con, user = req.con, req.user
-    users = [dict(r) for r in con.execute("SELECT id, username, name, short, role FROM users ORDER BY role, name")]
-    projects = [dict(r) for r in con.execute("SELECT * FROM projects ORDER BY created_at")]
-    if user["role"] == "manager":
-        rows = con.execute("SELECT * FROM tasks ORDER BY no").fetchall()
-    else:
-        rows = con.execute("SELECT * FROM tasks WHERE assignee_id IS NULL OR assignee_id = ? ORDER BY no",
-                           (user["id"],)).fetchall()
+    where, params = perms.task_filter(con, user)
+    rows = con.execute(f"SELECT t.* FROM tasks t WHERE {where} ORDER BY t.no", params).fetchall()
+    vis_p = perms.visible_project_ids(con, user)
+    projects = [dict(r) for r in con.execute("SELECT * FROM projects ORDER BY created_at") if vis_p is None or r["id"] in vis_p]
+    users = visible_users(con, user, [r["id"] for r in rows])
+    skills = [dict(r) for r in con.execute("SELECT * FROM skills ORDER BY sort, name")]
     tasks = {r["id"]: {**dict(r), "no_label": wo(r["no"]), "photos": [], "comments": [], "checklist": [],
                        "activity": [], "signature": None} for r in rows}
     ids = list(tasks)
@@ -290,10 +306,35 @@ def bootstrap(req):
             photos[r["photo_id"]]["annotations"].append({"id": r["id"], "x": r["x"], "y": r["y"], "text": r["text"], "by": r["by_id"]})
         for r in con.execute(f"SELECT * FROM ai_reviews WHERE photo_id IN ({marks})", pids):
             photos[r["photo_id"]]["ai"] = {**json.loads(r["result"]), "by": r["by_id"], "at": r["created_at"]}
-    return {"me": user, "users": users, "projects": projects, "tasks": list(tasks.values()), "photos": photos,
+    me = {**user, "perms": {"admin": perms.is_admin(user), "owner": perms.is_owner(user), "lead": user["role"] == "lead",
+                            "customers": perms.can_manage_customers(user), "roles": list(perms.creatable_roles(user))}}
+    return {"me": me, "users": users, "projects": projects, "skills": skills, "tasks": list(tasks.values()), "photos": photos,
             "settings": {"auto_rule": db.setting(con, "auto_rule", "1") == "1",
                          "ai_enabled": db.setting(con, "ai_enabled", "0") == "1"},
             "server_time": db.now(), "version": __version__}
+
+
+def visible_users(con, user, task_ids: list[str]) -> list[dict]:
+    """Rol ve izolasyona göre kullanıcı listesi. Teknisyen yalnızca işlerinde adı geçenleri görür."""
+    vis = perms.visible_user_ids(con, user, task_ids)
+    admin = perms.is_admin(user)
+    team = perms.team_ids(con, user)
+    skills: dict[str, list[str]] = {}
+    for r in con.execute("SELECT user_id, skill_id FROM user_skills"):
+        skills.setdefault(r[0], []).append(r[1])
+    last = {r[0]: r[1] for r in con.execute("SELECT user_id, MAX(created_at) FROM sessions GROUP BY user_id")} if admin else {}
+    out = []
+    for r in con.execute("SELECT * FROM users ORDER BY name"):
+        if vis is not None and r["id"] not in vis:
+            continue
+        u = {k: r[k] for k in ("id", "name", "short", "role", "lead_id")}
+        u["active"] = bool(r["active"])
+        if admin or r["id"] in team:  # ayrıntılar: yönetici herkesi, ekip lideri kendi ekibini görür
+            u.update(username=r["username"], phone=r["phone"], skills=skills.get(r["id"], []))
+        if admin:
+            u.update(created_at=r["created_at"], last_seen=last.get(r["id"]))
+        out.append(u)
+    return out
 
 
 @route("GET", "/api/search")
@@ -303,45 +344,219 @@ def search(req):
         return {"ids": []}
     like = f"%{q}%"
     rows = req.con.execute(
-        """SELECT DISTINCT t.id, t.assignee_id FROM tasks t
+        """SELECT DISTINCT t.id, t.assignee_id, t.created_by FROM tasks t
            LEFT JOIN comments c ON c.task_id = t.id
            LEFT JOIN task_photos tp ON tp.task_id = t.id
            LEFT JOIN annotations a ON a.photo_id = tp.photo_id
            WHERE t.title LIKE ? OR ('İE-' || printf('%04d', t.no)) LIKE ? OR c.text LIKE ? OR a.text LIKE ?""",
         (like, like, like, like)).fetchall()
-    return {"ids": [r["id"] for r in rows if can_see(req.user, r)]}
+    return {"ids": [r["id"] for r in rows if perms.can_see_task(req.con, req.user, r)]}
 
 
 # ---------- kullanıcılar ve projeler ----------
 
+def _lead_or_none(con, lead_id, self_id=None):
+    if lead_id in (None, ""):
+        return None
+    row = con.execute("SELECT role, active FROM users WHERE id = ?", (lead_id,)).fetchone()
+    if not row or row["role"] != "lead" or lead_id == self_id:
+        raise ApiError(400, "bad_lead", "Ekip lideri olarak yalnızca 'Ekip lideri' rolündeki biri seçilebilir.")
+    return lead_id
+
+
+def _set_skills(con, uid, skill_ids):
+    if not isinstance(skill_ids, list):
+        raise ApiError(400, "bad_skill", "Yetenekler liste olmalı.")
+    con.execute("DELETE FROM user_skills WHERE user_id = ?", (uid,))
+    for sid in dict.fromkeys(skill_ids):
+        skill_or_none(con, sid)
+        con.execute("INSERT INTO user_skills(user_id, skill_id) VALUES (?, ?)", (uid, sid))
+
+
 @route("POST", "/api/users")
 def create_user(req):
-    need_manager(req)
-    body = req.json()
+    body, con = req.json(), req.con
+    role = body.get("role", "field")
+    allowed = perms.creatable_roles(req.user)
+    if not allowed:
+        raise ApiError(403, "forbidden", "Kişi eklemek için yönetici yetkisi gerekiyor.")
+    if role not in allowed:
+        raise ApiError(403, "bad_role", "Bu rolde kişi ekleme yetkin yok.")
     username = text_field(body, "username", max_len=32).lower()
     if not re.fullmatch(r"[a-z0-9._-]{3,32}", username):
         raise ApiError(400, "bad_username", "Kullanıcı adı 3-32 karakter: küçük harf, rakam, nokta, tire.")
     name = text_field(body, "name", max_len=80)
-    role = body.get("role", "field")
-    if role not in ("manager", "field"):
-        raise ApiError(400, "bad_role", "Rol 'manager' veya 'field' olmalı.")
     password = body.get("password") or ""
-    if len(password) < 6:
-        raise ApiError(400, "weak_password", "Parola en az 6 karakter olmalı.")
+    if len(password) < 8:
+        raise ApiError(400, "weak_password", "Parola en az 8 karakter olmalı.")
     uid = db.new_id()
     try:
-        with db.tx(req.con):
-            req.con.execute("INSERT INTO users(id, username, name, short, role, pw_hash, created_at) VALUES (?,?,?,?,?,?,?)",
-                            (uid, username, name, auth.initials(name), role, auth.hash_password(password), db.now()))
+        with db.tx(con):
+            lead = _lead_or_none(con, body.get("lead_id")) if role == "field" else None
+            con.execute("""INSERT INTO users(id, username, name, short, role, pw_hash, created_at, lead_id, phone)
+                           VALUES (?,?,?,?,?,?,?,?,?)""",
+                        (uid, username, name, auth.initials(name), role, auth.hash_password(password), db.now(), lead,
+                         text_field(body, "phone", False, 40)))
+            if body.get("skills"):
+                _set_skills(con, uid, body["skills"])
     except sqlite3.IntegrityError:
         raise ApiError(409, "username_taken", "Bu kullanıcı adı kullanılıyor.")
     req.publish({"type": "users"})
     return {"id": uid}
 
 
+@route("PATCH", r"/api/users/(?P<uid>\w+)")
+def update_user(req):
+    body, con, actor = req.json(), req.con, req.user
+    with db.tx(con):
+        target = con.execute("SELECT * FROM users WHERE id = ?", (req.match["uid"],)).fetchone()
+        if not target:
+            raise ApiError(404, "not_found", "Kişi bulunamadı.")
+        if not perms.can_manage_user(actor, target):
+            raise ApiError(403, "forbidden", "Bu kişiyi düzenleme yetkin yok.")
+        sets = {}
+        if "name" in body:
+            sets["name"] = text_field(body, "name", max_len=80)
+            sets["short"] = auth.initials(sets["name"])
+        if "phone" in body:
+            sets["phone"] = text_field(body, "phone", False, 40)
+        role = target["role"]
+        if "role" in body and body["role"] != role:
+            if body["role"] not in perms.creatable_roles(actor):
+                raise ApiError(403, "bad_role", "Bu rolü verme yetkin yok.")
+            if role == "owner" and con.execute("SELECT COUNT(*) FROM users WHERE role = 'owner' AND active = 1").fetchone()[0] < 2:
+                raise ApiError(409, "last_owner", "Son sahip hesabının rolü değiştirilemez.")
+            if role == "lead":  # ekip dağılır
+                con.execute("UPDATE users SET lead_id = NULL WHERE lead_id = ?", (target["id"],))
+            role = sets["role"] = body["role"]
+        if role != "field":
+            sets["lead_id"] = None
+        elif "lead_id" in body:
+            sets["lead_id"] = _lead_or_none(con, body["lead_id"], target["id"])
+        if "active" in body:
+            active = bool(body["active"])
+            if not active and target["role"] == "owner" and con.execute(
+                    "SELECT COUNT(*) FROM users WHERE role = 'owner' AND active = 1").fetchone()[0] < 2:
+                raise ApiError(409, "last_owner", "Son sahip hesabı pasifleştirilemez.")
+            sets["active"] = 1 if active else 0
+            if not active:
+                con.execute("DELETE FROM sessions WHERE user_id = ?", (target["id"],))
+        if body.get("revoke_sessions"):
+            con.execute("DELETE FROM sessions WHERE user_id = ?", (target["id"],))
+        if "skills" in body:
+            _set_skills(con, target["id"], body["skills"])
+        if sets:
+            cols = ", ".join(f"{k} = ?" for k in sets)
+            con.execute(f"UPDATE users SET {cols} WHERE id = ?", (*sets.values(), target["id"]))
+    req.publish({"type": "users"})
+    return {"ok": True}
+
+
+@route("PATCH", "/api/me")
+def update_me(req):
+    body, con = req.json(), req.con
+    sets = {}
+    if "theme" in body:
+        if body["theme"] not in THEMES:
+            raise ApiError(400, "bad_theme", "Bilinmeyen tema.")
+        sets["theme"] = body["theme"]
+    if "name" in body:
+        sets["name"] = text_field(body, "name", max_len=80)
+        sets["short"] = auth.initials(sets["name"])
+    if "phone" in body:
+        sets["phone"] = text_field(body, "phone", False, 40)
+    if sets:
+        with db.tx(con):
+            cols = ", ".join(f"{k} = ?" for k in sets)
+            con.execute(f"UPDATE users SET {cols} WHERE id = ?", (*sets.values(), req.user["id"]))
+    return {"ok": True}
+
+
+# ---------- yetenekler ----------
+
+def tr_key(s: str) -> str:
+    """Türkçe büyük/küçük harf duyarsız karşılaştırma anahtarı (SQLite NOCASE yalnızca ASCII'yi bilir)."""
+    return s.replace("İ", "i").replace("I", "ı").lower().strip()
+
+
+def _skill_name_free(con, name: str, except_id: str | None = None):
+    for r in con.execute("SELECT id, name FROM skills"):
+        if r["id"] != except_id and tr_key(r["name"]) == tr_key(name):
+            raise ApiError(409, "skill_exists", "Bu adda bir yetenek var.")
+
+
+def _skill_body(body, partial=False) -> dict:
+    out = {}
+    if not partial or "name" in body:
+        out["name"] = text_field(body, "name", max_len=40)
+    if "icon" in body or not partial:
+        icon = body.get("icon") or "wrench"
+        if icon not in SKILL_ICONS:
+            raise ApiError(400, "bad_icon", "Bilinmeyen simge.")
+        out["icon"] = icon
+    if "color" in body or not partial:
+        color = body.get("color") or "#64748B"
+        if not HEX_RE.fullmatch(color):
+            raise ApiError(400, "bad_color", "Renk #RRGGBB biçiminde olmalı.")
+        out["color"] = color.upper()
+    return out
+
+
+@route("POST", "/api/skills")
+def create_skill(req):
+    need_manager(req)
+    v = _skill_body(req.json())
+    sid = "sk_" + db.new_id()[:12]
+    try:
+        with db.tx(req.con):
+            _skill_name_free(req.con, v["name"])
+            sort = req.con.execute("SELECT COALESCE(MAX(sort), 0) + 1 FROM skills").fetchone()[0]
+            req.con.execute("INSERT INTO skills(id, name, icon, color, sort) VALUES (?,?,?,?,?)",
+                            (sid, v["name"], v["icon"], v["color"], sort))
+    except sqlite3.IntegrityError:
+        raise ApiError(409, "skill_exists", "Bu adda bir yetenek var.")
+    req.publish({"type": "skills"})
+    return {"id": sid}
+
+
+@route("PATCH", r"/api/skills/(?P<sid>\w+)")
+def update_skill(req):
+    need_manager(req)
+    v = _skill_body(req.json(), partial=True)
+    try:
+        with db.tx(req.con):
+            if not req.con.execute("SELECT 1 FROM skills WHERE id = ?", (req.match["sid"],)).fetchone():
+                raise ApiError(404, "not_found", "Yetenek bulunamadı.")
+            if "name" in v:
+                _skill_name_free(req.con, v["name"], req.match["sid"])
+            if v:
+                cols = ", ".join(f"{k} = ?" for k in v)
+                req.con.execute(f"UPDATE skills SET {cols} WHERE id = ?", (*v.values(), req.match["sid"]))
+    except sqlite3.IntegrityError:
+        raise ApiError(409, "skill_exists", "Bu adda bir yetenek var.")
+    req.publish({"type": "skills"})
+    return {"ok": True}
+
+
+@route("DELETE", r"/api/skills/(?P<sid>\w+)")
+def delete_skill(req):
+    need_manager(req)
+    with db.tx(req.con):
+        cur = req.con.execute("DELETE FROM skills WHERE id = ?", (req.match["sid"],))
+        if not cur.rowcount:
+            raise ApiError(404, "not_found", "Yetenek bulunamadı.")
+    req.publish({"type": "skills"})
+    return {"ok": True}
+
+
+def need_customers(req):
+    if not perms.can_manage_customers(req.user):
+        raise ApiError(403, "forbidden", "Müşteri eklemek ve düzenlemek için ekip lideri ya da yönetici olmalısın.")
+
+
 @route("POST", "/api/projects")
 def create_project(req):
-    need_manager(req)
+    need_customers(req)
     body = req.json()
     name = text_field(body, "name", max_len=120)
     short = text_field(body, "short", required=False, max_len=40) or name.split("·")[0].strip()[:40]
@@ -359,9 +574,10 @@ def create_project(req):
     addr_src = body.get("address_source") if body.get("address_source") in ("manual", "geocode") else "manual"
     with db.tx(req.con):
         req.con.execute("""INSERT INTO projects(id, name, short, client, contact, address, lat, lng, created_at,
-                           address_source, location_source) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                           address_source, location_source, phone, email, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                         (pid, name, short, text_field(body, "client", False, 120), text_field(body, "contact", False, 120),
-                         address, lat, lng, db.now(), addr_src if address else "none", loc_src if lat is not None else "none"))
+                         address, lat, lng, db.now(), addr_src if address else "none", loc_src if lat is not None else "none",
+                         text_field(body, "phone", False, 40), text_field(body, "email", False, 120), text_field(body, "notes", False, 1000)))
     req.publish({"type": "projects"})
     return {"id": pid}
 
@@ -382,16 +598,18 @@ def _coords(body):
 
 @route("PATCH", r"/api/projects/(?P<pid>\w+)")
 def update_project(req):
-    need_manager(req)
+    need_customers(req)
     body = req.json()
     with db.tx(req.con):
         p = req.con.execute("SELECT * FROM projects WHERE id = ?", (req.match["pid"],)).fetchone()
         if not p:
             raise ApiError(404, "not_found", "Müşteri bulunamadı.")
         sets = {}
-        for key, n in (("name", 120), ("short", 40), ("client", 120), ("contact", 120)):
+        for key, n in (("name", 120), ("short", 40), ("client", 120), ("contact", 120), ("phone", 40), ("email", 120), ("notes", 1000)):
             if key in body:
                 sets[key] = text_field(body, key, required=key == "name", max_len=n)
+        if "archived" in body:
+            sets["archived"] = 1 if body["archived"] else 0
         if "address" in body:
             sets["address"] = text_field(body, "address", False, 200)
             sets["address_source"] = "manual" if sets["address"] else "none"
@@ -409,6 +627,20 @@ def update_project(req):
         if sets:
             cols = ", ".join(f"{k} = ?" for k in sets)
             req.con.execute(f"UPDATE projects SET {cols} WHERE id = ?", (*sets.values(), p["id"]))
+    req.publish({"type": "projects"})
+    return {"ok": True}
+
+
+@route("DELETE", r"/api/projects/(?P<pid>\w+)")
+def delete_project(req):
+    need_manager(req)
+    with db.tx(req.con):
+        n = req.con.execute("SELECT COUNT(*) FROM tasks WHERE project_id = ?", (req.match["pid"],)).fetchone()[0]
+        if n:
+            raise ApiError(409, "has_tasks", f"Bu müşterinin {n} işi var; silmek yerine arşivle.")
+        cur = req.con.execute("DELETE FROM projects WHERE id = ?", (req.match["pid"],))
+        if not cur.rowcount:
+            raise ApiError(404, "not_found", "Müşteri bulunamadı.")
     req.publish({"type": "projects"})
     return {"ok": True}
 
@@ -445,22 +677,23 @@ def update_settings(req):
 # ---------- işler ----------
 
 def insert_task(con, user, project_id: str, title: str, due: str | None = None, priority="normal",
-                assignee_id: str | None = "self") -> dict:
-    if not con.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
-        raise ApiError(400, "bad_project", "Proje bulunamadı.")
+                assignee_id: str | None = "self", skill_id: str | None = None) -> dict:
+    vis = perms.visible_project_ids(con, user)
+    if not con.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() or (vis is not None and project_id not in vis):
+        raise ApiError(400, "bad_project", "Müşteri bulunamadı.")
     no = db.next_task_no(con)
     untitled = 0
     if not title:
         title = f"Başlıksız iş · {datetime.now().strftime('%H:%M')}"
         untitled = 1
     if assignee_id == "self":
-        assignee_id = None if user["role"] == "manager" else user["id"]
+        assignee_id = user["id"] if user["role"] == "field" else None
     tid = db.new_id()
     ts = db.now()
     con.execute("""INSERT INTO tasks(id, no, project_id, title, untitled, status, assignee_id, due, priority,
-                   created_by, created_at, updated_at) VALUES (?,?,?,?,?, 'open', ?,?,?,?,?,?)""",
+                   created_by, created_at, updated_at, skill_id) VALUES (?,?,?,?,?, 'open', ?,?,?,?,?,?,?)""",
                 (tid, no, project_id, title, untitled, assignee_id, due or (date.today() + timedelta(days=3)).isoformat(),
-                 priority, user["id"], ts, ts))
+                 priority, user["id"], ts, ts, skill_or_none(con, skill_id)))
     return {"id": tid, "no": no}
 
 
@@ -472,10 +705,11 @@ def create_task(req):
         raise ApiError(400, "bad_priority", "Öncelik 'normal' veya 'high' olmalı.")
     due = valid_date(body["due"]) if body.get("due") else None
     assignee = body.get("assignee_id", "self")
-    if assignee not in ("self", None) and req.user["role"] != "manager":
-        raise ApiError(403, "forbidden", "Atamayı yalnızca yönetici yapabilir.")
     with db.tx(req.con):
-        t = insert_task(req.con, req.user, body.get("project_id"), text_field(body, "title", False, 160), due, priority, assignee)
+        if assignee != "self" and not perms.can_assign_to(req.con, req.user, assignee):
+            raise ApiError(403, "forbidden", "Bu kişiye iş atama yetkin yok.")
+        t = insert_task(req.con, req.user, body.get("project_id"), text_field(body, "title", False, 160), due, priority,
+                        assignee, body.get("skill_id"))
         log(req.con, t["id"], req.user["id"], "İşi oluşturdu")
     req.publish({"type": "task", "id": t["id"]})
     return {"id": t["id"], "no_label": wo(t["no"])}
@@ -505,11 +739,18 @@ def update_task(req):
                 raise ApiError(400, "bad_priority", "Öncelik 'normal' veya 'high' olmalı.")
             con.execute("UPDATE tasks SET priority = ? WHERE id = ?", (body["priority"], t["id"]))
             msgs.append("Önceliği " + ("acil" if body["priority"] == "high" else "normal") + " yaptı")
+        if "skill_id" in body:
+            if user["role"] == "field":
+                raise ApiError(403, "forbidden", "Yeteneği ekip lideri ya da yönetici belirler.")
+            sk = skill_or_none(con, body["skill_id"])
+            if sk != t["skill_id"]:
+                con.execute("UPDATE tasks SET skill_id = ? WHERE id = ?", (sk, t["id"]))
+                name = con.execute("SELECT name FROM skills WHERE id = ?", (sk,)).fetchone() if sk else None
+                msgs.append(f"Yeteneği {name['name']} yaptı" if name else "Yeteneği kaldırdı")
         if "assignee_id" in body:
-            need_manager(req)
             a = body["assignee_id"] or None
-            if a and not con.execute("SELECT 1 FROM users WHERE id = ?", (a,)).fetchone():
-                raise ApiError(400, "bad_user", "Kullanıcı bulunamadı.")
+            if a != t["assignee_id"] and not perms.can_assign_to(con, user, a):
+                raise ApiError(403, "forbidden", "Bu kişiye iş atama yetkin yok.")
             if a != t["assignee_id"]:
                 con.execute("UPDATE tasks SET assignee_id = ? WHERE id = ?", (a, t["id"]))
                 msgs.append(f"{user_name(con, a)} kişisine atadı" if a else "Atamayı kaldırdı")
@@ -518,11 +759,11 @@ def update_task(req):
             if s not in STATUSES:
                 raise ApiError(400, "bad_status", "Geçersiz durum.")
             if s != t["status"]:
-                if user["role"] != "manager":
+                if not perms.can_review(con, user, t):
                     if s == "done":
-                        raise ApiError(403, "forbidden", "“Tamamlandı” durumuna yalnızca yönetici taşıyabilir. İşi “Onay bekliyor”a taşı.")
+                        raise ApiError(403, "forbidden", "“Tamamlandı” durumuna yalnızca ekip lideri ya da yönetici taşıyabilir. İşi “Onay bekliyor”a taşı.")
                     if t["status"] == "done":
-                        raise ApiError(403, "forbidden", "Tamamlanmış işi yalnızca yönetici yeniden açabilir.")
+                        raise ApiError(403, "forbidden", "Tamamlanmış işi yalnızca ekip lideri ya da yönetici yeniden açabilir.")
                 rejected = t["rejected_reason"] if s == "progress" else None
                 con.execute("UPDATE tasks SET status = ?, rejected_reason = ? WHERE id = ?", (s, rejected, t["id"]))
                 msgs.append(f"Durumu “{STATUS_NAMES[s]}” yaptı")
@@ -549,11 +790,12 @@ def claim_task(req):
 
 @route("POST", r"/api/tasks/(?P<tid>\w+)/review")
 def review_task(req):
-    need_manager(req)
     body = req.json()
     decision = body.get("decision")
     with db.tx(req.con):
         t = get_task(req, req.match["tid"])
+        if not perms.can_review(req.con, req.user, t):
+            raise ApiError(403, "forbidden", "Onay için ekip lideri ya da yönetici olmalısın.")
         if t["status"] != "review":
             raise ApiError(409, "not_in_review", "Yalnızca “Onay bekliyor” durumundaki iş onaylanabilir.")
         if decision == "approve":
@@ -707,12 +949,12 @@ def unlink_photo(req):
 
 
 def photo_visible(req, pid: str) -> bool:
-    if req.user["role"] == "manager":
+    if perms.is_admin(req.user):
         return True
+    where, params = perms.task_filter(req.con, req.user)
     row = req.con.execute(
-        """SELECT 1 FROM task_photos tp JOIN tasks t ON t.id = tp.task_id
-           WHERE tp.photo_id = ? AND (t.assignee_id IS NULL OR t.assignee_id = ?) LIMIT 1""",
-        (pid, req.user["id"])).fetchone()
+        f"""SELECT 1 FROM task_photos tp JOIN tasks t ON t.id = tp.task_id
+           WHERE tp.photo_id = ? AND {where} LIMIT 1""", (pid, *params)).fetchone()
     if row:
         return True
     return bool(req.con.execute("SELECT 1 FROM photos WHERE id = ? AND uploaded_by = ?", (pid, req.user["id"])).fetchone())
@@ -759,7 +1001,7 @@ def delete_annotation(req):
         a = req.con.execute("SELECT * FROM annotations WHERE id = ?", (req.match["aid"],)).fetchone()
         if not a:
             raise ApiError(404, "not_found", "İşaret bulunamadı.")
-        if req.user["role"] != "manager" and a["by_id"] != req.user["id"]:
+        if not perms.is_admin(req.user) and a["by_id"] != req.user["id"]:
             raise ApiError(403, "forbidden", "Yalnızca kendi işaretini silebilirsin.")
         req.con.execute("DELETE FROM annotations WHERE id = ?", (a["id"],))
     req.publish({"type": "photo", "id": a["photo_id"]})
@@ -877,7 +1119,7 @@ def signature_file(req):
 
 @route("GET", "/api/backup")
 def backup(req):
-    need_manager(req)
+    need_owner(req)
     tmp = tempfile.mkdtemp(prefix="fototakip-backup-")
     try:
         snap = os.path.join(tmp, "fototakip.db")
@@ -908,12 +1150,12 @@ def ai_review_photo(req):
     body = req.json()
     con, pid = req.con, req.match["pid"]
     if db.setting(con, "ai_enabled", "0") != "1":
-        raise ApiError(409, "ai_disabled", "AI inceleme kapalı. Yönetici Profil › Entegrasyonlar'dan açabilir.")
+        raise ApiError(409, "ai_disabled", "AI inceleme kapalı. Sahip hesabı Yönetim › Bağlantılar'dan açabilir.")
     t = get_task(req, body.get("task_id", ""))
     if not con.execute("SELECT 1 FROM task_photos WHERE task_id = ? AND photo_id = ?", (t["id"], pid)).fetchone():
         raise ApiError(404, "not_found", "Fotoğraf bu işe ait değil.")
     cached = con.execute("SELECT * FROM ai_reviews WHERE photo_id = ?", (pid,)).fetchone()
-    if cached and not (body.get("force") and req.user["role"] == "manager"):
+    if cached and not (body.get("force") and perms.is_admin(req.user)):
         return {**json.loads(cached["result"]), "by": cached["by_id"], "at": cached["created_at"], "cached": True}
     ph = con.execute("SELECT * FROM photos WHERE id = ?", (pid,)).fetchone()
     p = con.execute("SELECT name FROM projects WHERE id = ?", (t["project_id"],)).fetchone()
@@ -963,13 +1205,13 @@ def integrations_state(req) -> dict:
 
 @route("GET", "/api/admin/integrations")
 def get_integrations(req):
-    need_manager(req)
+    need_owner(req)
     return integrations_state(req)
 
 
 @route("PATCH", "/api/admin/integrations")
 def update_integrations(req):
-    need_manager(req)
+    need_owner(req)
     body, con, d = req.json(), req.con, req.cfg.data_dir
     ai = body.get("ai") or {}
     tn = body.get("tunnel") or {}
@@ -1026,29 +1268,31 @@ def start_tunnel(con, cfg, tun) -> dict:
 
 @route("POST", "/api/admin/tunnel/start")
 def tunnel_start(req):
-    need_manager(req)
+    need_owner(req)
     start_tunnel(req.con, req.cfg, req.tunnel)
     return integrations_state(req)
 
 
 @route("POST", "/api/admin/tunnel/stop")
 def tunnel_stop(req):
-    need_manager(req)
+    need_owner(req)
     req.tunnel.stop()
     return integrations_state(req)
 
 
 @route("POST", r"/api/admin/users/(?P<uid>\w+)/password")
 def reset_user_password(req):
-    """Yönetici başka bir kişinin parolasını sıfırlar (örnek hesapları kapatmak için)."""
-    need_manager(req)
+    """Yönetici, yönetebildiği bir kişinin parolasını sıfırlar."""
     new = req.json().get("password") or ""
+    target = req.con.execute("SELECT * FROM users WHERE id = ?", (req.match["uid"],)).fetchone()
+    if not target:
+        raise ApiError(404, "not_found", "Kişi bulunamadı.")
+    if not perms.can_manage_user(req.user, target):
+        raise ApiError(403, "forbidden", "Bu kişinin parolasını değiştirme yetkin yok.")
     if len(new) < 8:
         raise ApiError(400, "weak_password", "Yeni parola en az 8 karakter olmalı.")
     with db.tx(req.con):
-        cur = req.con.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (auth.hash_password(new), req.match["uid"]))
-        if not cur.rowcount:
-            raise ApiError(404, "not_found", "Kişi bulunamadı.")
+        req.con.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (auth.hash_password(new), req.match["uid"]))
         # o kişinin diğer oturumları kapanır; kendi parolasını değiştiren yönetici açık kalır
         req.con.execute("DELETE FROM sessions WHERE user_id = ? AND token != ?", (req.match["uid"], req.token or ""))
     return {"ok": True}

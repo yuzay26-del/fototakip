@@ -78,7 +78,7 @@ def review_photo(path: str | Path, mime: str, context: str = "", *, api_key: str
     """Analyze one image and return structured observations (never an approval verdict)."""
     key = (api_key or os.environ.get("OPENAI_API_KEY", "")).strip()
     if not key:
-        raise ReviewError("AI inceleme yapılandırılmamış: Profil › Entegrasyonlar'dan OpenAI anahtarını gir.")
+        raise ReviewError("AI inceleme yapılandırılmamış: Yönetim › Sistem'den OpenAI anahtarını gir.")
     model = (model or os.environ.get("FOTOTAKIP_AI_MODEL") or DEFAULT_MODEL).strip()
 
     mime = (mime or "").lower()

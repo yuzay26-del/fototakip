@@ -11,7 +11,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE users (
@@ -155,7 +155,56 @@ MIGRATIONS = {
     INSERT OR IGNORE INTO settings(key, value) VALUES ('ai_enabled', '0'), ('ai_model', 'gpt-4.1-mini'),
         ('tunnel_mode', 'off'), ('tunnel_hostname', ''), ('tunnel_autostart', '0');
     """,
+    # 4: rol hiyerarşisi (sahip/yönetici/ekip lideri/teknisyen), ekipler, yetenekler, müşteri ayrıntıları.
+    # users tablosundaki rol kısıtı değiştiği için tablo yeniden kurulur (veriler kopyalanır).
+    4: """
+    CREATE TABLE users_new (
+        id          TEXT PRIMARY KEY,
+        username    TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        name        TEXT NOT NULL,
+        short       TEXT NOT NULL,
+        role        TEXT NOT NULL CHECK (role IN ('owner', 'manager', 'lead', 'field')),
+        pw_hash     TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        lead_id     TEXT REFERENCES users(id) ON DELETE SET NULL,
+        phone       TEXT NOT NULL DEFAULT '',
+        active      INTEGER NOT NULL DEFAULT 1,
+        theme       TEXT NOT NULL DEFAULT ''
+    );
+    INSERT INTO users_new(id, username, name, short, role, pw_hash, created_at)
+        SELECT id, username, name, short, role, pw_hash, created_at FROM users;
+    DROP TABLE users;
+    ALTER TABLE users_new RENAME TO users;
+    CREATE INDEX idx_users_lead ON users(lead_id);
+    UPDATE users SET role = 'owner' WHERE id = (SELECT id FROM users WHERE role = 'manager' ORDER BY created_at LIMIT 1);
+    ALTER TABLE projects ADD COLUMN phone TEXT NOT NULL DEFAULT '';
+    ALTER TABLE projects ADD COLUMN email TEXT NOT NULL DEFAULT '';
+    ALTER TABLE projects ADD COLUMN notes TEXT NOT NULL DEFAULT '';
+    ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE skills (
+        id      TEXT PRIMARY KEY,
+        name    TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        icon    TEXT NOT NULL DEFAULT 'wrench',
+        color   TEXT NOT NULL DEFAULT '#64748B',
+        sort    INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE user_skills (
+        user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        skill_id  TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, skill_id)
+    );
+    ALTER TABLE tasks ADD COLUMN skill_id TEXT REFERENCES skills(id) ON DELETE SET NULL;
+    INSERT INTO skills(id, name, icon, color, sort) VALUES
+        ('sk_elektrik', 'Elektrik', 'bolt', '#D97706', 1),
+        ('sk_tesisat', 'Tesisat', 'drop', '#0284C7', 2),
+        ('sk_klima', 'Klima', 'snow', '#0891B2', 3),
+        ('sk_boya', 'Boya', 'brush', '#C026D3', 4),
+        ('sk_yapi', 'Yapı', 'brick', '#B45309', 5),
+        ('sk_ag', 'Ağ ve telekom', 'wifi', '#4F46E5', 6)
+    """,
 }
+# Tablo yeniden kurulan göçler: yabancı anahtar denetimi göç süresince kapatılır, sonra doğrulanır.
+REBUILD_MIGRATIONS = {4}
 
 # SQLite aynı anda tek yazıcıya izin verir; yazmaları süreç içinde sıraya sokuyoruz.
 WRITE_LOCK = threading.RLock()
@@ -191,15 +240,25 @@ def init(path: str) -> None:
             con.execute("PRAGMA user_version = 1")
             version = 1
         for target in range(version + 1, SCHEMA_VERSION + 1):
+            rebuild = target in REBUILD_MIGRATIONS
+            if rebuild:  # DROP TABLE, bağlı satırları silmesin (oturumlar, işler)
+                con.execute("PRAGMA foreign_keys = OFF")
             con.execute("BEGIN IMMEDIATE")
             try:
                 for stmt in [x.strip() for x in MIGRATIONS[target].split(";") if x.strip()]:
                     con.execute(stmt)
+                if rebuild:
+                    bad = con.execute("PRAGMA foreign_key_check").fetchall()
+                    if bad:
+                        raise RuntimeError(f"Göç {target}: yabancı anahtar hatası {[tuple(r) for r in bad[:3]]}")
                 con.execute(f"PRAGMA user_version = {target}")
                 con.execute("COMMIT")
             except BaseException:
                 con.execute("ROLLBACK")
                 raise
+            finally:
+                if rebuild:
+                    con.execute("PRAGMA foreign_keys = ON")
     finally:
         con.close()
 

@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = ROOT / "docs" / "proje-haritasi.html"
 SOURCES = ["fototakip/api.py", "fototakip/db.py", "web/app.js", "web/sw.js", "fototakip/geo.py",
-           "fototakip/images.py", "fototakip/auth.py", "fototakip/server.py", "fototakip/__main__.py",
+           "fototakip/images.py", "fototakip/auth.py", "fototakip/perms.py", "fototakip/server.py", "fototakip/__main__.py",
            "scripts/install.sh", "scripts/install-termux.sh", "scripts/github-upload.sh", "scripts/backup.sh", "scripts/sifirla.sh",
            ".github/workflows/ci.yml", "tests/test_api.py", "tools/proje-haritasi/uret.py", "tools/proje-haritasi/sablon.html"]
 
@@ -49,7 +49,8 @@ def extract(R):
                 if isinstance(f, ast.Attribute):
                     base = f.value
                     name = ast.unparse(f)
-                    if name.startswith(('auth.', 'images.', 'geo.', 'db.', 'ai_review.', 'secrets.', 'tunnel.')): mods.add(name)
+                    if name.startswith(('auth.', 'images.', 'geo.', 'db.', 'ai_review.', 'secrets.', 'tunnel.', 'perms.')): mods.add(name)
+                    if name in ('need_manager', 'need_owner', 'need_customers', 'get_task', 'photo_visible', 'visible_users'): mods.add('perms.' + name)
                     if name in ('req.geo.enqueue', 'req.geo.reverse') or name.startswith('req.tunnel.'): mods.add(name)
                     if name == 'req.publish': mods.add('publish')
                     if name == 'req.file': mods.add('file')
@@ -130,7 +131,8 @@ def build(R, raw):
      'ui.gallery': ('Galeri', 'Fotoğraflar türe göre süzülür.', 'viewGallery'),
      'ui.map': ('Harita', 'Leaflet + OSM: müşteri pinleri, mavi nokta, fotoğraf katmanı, haritadan müşteri ekleme.', 'renderMapView'),
      'ui.report': ('Rapor', 'Önce/sonra çiftleri ve imzalarla müşteri teslim belgesi.', 'viewReport'),
-     'ui.profile': ('Profil ve ayarlar', 'Ekip, yeni proje, otomasyon, yedek, parola, çevrimdışı test modu.', 'viewProfile'),
+     'ui.profile': ('Profil', 'Kişisel bilgiler, 5 stil seçici, parola, çevrimdışı test modu, çıkış.', 'viewProfile'),
+     'ui.admin': ('Yönetim paneli', 'Müşteriler, ekip ağacı (rol, lider, yetenek, açık/pasif), yetenekler, sistem: otomasyon, yedek, tünel, DNS, AI.', 'viewAdmin'),
      'ui.sw': ('Service worker', 'sw.js: uygulama kabuğu, son veri ve harita karoları önbelleği.', None),
     }
     js = (R/'web/app.js').read_text().split('\n')
@@ -162,12 +164,13 @@ def build(R, raw):
      'mod.db': ('db.py', 'SQLite bağlantısı, şema, sürüm göçleri, yazma kilidi.', 'fototakip/db.py'),
      'mod.ai': ('ai_review.py', 'OpenAI ile fotoğraf gözlemi; model çıktısını dar bir şemaya indirir, EXIF siler.', 'fototakip/ai_review.py'),
      'mod.tunnel': ('tunnel.py', 'Ücretsiz Cloudflare tüneli (hızlı / adlandırılmış) ve Termux DNS ayarı.', 'fototakip/tunnel.py'),
+     'mod.perms': ('perms.py', 'Rol hiyerarşisi (sahip › yönetici › ekip lideri › teknisyen) ve izolasyon: kim hangi işi, müşteriyi, kişiyi görür; canlı olay süzgeci.', 'fototakip/perms.py'),
      'mod.secrets': ('secrets.py', 'OpenAI anahtarı ve tünel token\'ı: 0600 izinli ayrı dosya, istemciye gitmez.', 'fototakip/secrets.py'),
     }
     for k, (lab, d, f) in MOD.items(): N(k, 3, 'module', lab, d, f, 1, loc=loc(f))
 
     # katman 4: veri
-    TDESC = {'users': 'Kişiler ve roller', 'sessions': 'Oturum anahtarları', 'projects': 'Müşteriler / sahalar, konum ve adres kaynağı', 'tasks': 'İşler, durum, sürüm', 'photos': 'Fotoğraf kaydı: konum, doğruluk, adres', 'task_photos': 'İş ↔ fotoğraf, tür', 'annotations': 'Fotoğraf üzerindeki işaretler', 'comments': 'Yorumlar', 'checklist': 'Kontrol maddeleri, kanıt fotoğrafı', 'activity': 'Etkinlik geçmişi', 'signatures': 'Müşteri imzaları', 'settings': 'Otomasyon, sayaç, AI ve tünel ayarları', 'geocode_cache': 'Adres önbelleği (~11 m hücre)', 'ai_reviews': 'AI gözlemleri (fotoğraf başına önbellek)'}
+    TDESC = {'users': 'Kişiler ve roller', 'sessions': 'Oturum anahtarları', 'projects': 'Müşteriler / sahalar, konum ve adres kaynağı', 'tasks': 'İşler, durum, sürüm', 'photos': 'Fotoğraf kaydı: konum, doğruluk, adres', 'task_photos': 'İş ↔ fotoğraf, tür', 'annotations': 'Fotoğraf üzerindeki işaretler', 'comments': 'Yorumlar', 'checklist': 'Kontrol maddeleri, kanıt fotoğrafı', 'activity': 'Etkinlik geçmişi', 'signatures': 'Müşteri imzaları', 'settings': 'Otomasyon, sayaç, AI ve tünel ayarları', 'skills': 'Yetenek kataloğu: ad, simge, renk', 'user_skills': 'Kişi ↔ yetenek', 'geocode_cache': 'Adres önbelleği (~11 m hücre)', 'ai_reviews': 'AI gözlemleri (fotoğraf başına önbellek)'}
     dbpy = (R/'fototakip/db.py').read_text().split('\n')
     for t in raw['tables']:
         ln = next((i for i, l in enumerate(dbpy, 1) if f'CREATE TABLE {t}' in l), None)
@@ -195,9 +198,10 @@ def build(R, raw):
            'moveTask': 'ui.board', 'step': 'ui.sheet', 'logout': 'ui.profile', 'claim': 'ui.sheet', 'annSave': 'ui.sheet', 'annDel': 'ui.sheet',
            'unlink': 'ui.sheet', 'comment': 'ui.sheet', 'ckAdd': 'ui.sheet', 'ckDel': 'ui.sheet', 'proof': 'ui.sheet', 'approve': 'ui.sheet',
            'reject': 'ui.sheet', 'sigSave': 'ui.sheet', 'delTask': 'ui.sheet', 'newTask': 'ui.board', 'pickSaveMove': 'ui.map', 'applySug': 'ui.map',
-           'dismissSug': 'ui.map', 'check': 'ui.sheet', 'autoRule': 'ui.profile', 'mapCustomer': 'ui.map', 'password': 'ui.profile', 'user': 'ui.profile',
-           'project': 'ui.profile', 'aiRun': 'ui.sheet', 'loadIntegrations': 'ui.profile', 'tunStart': 'ui.profile', 'tunStop': 'ui.profile',
-           'saveInteg': 'ui.profile', 'resetPw': 'ui.profile'}
+           'dismissSug': 'ui.map', 'check': 'ui.sheet', 'autoRule': 'ui.admin', 'mapCustomer': 'ui.map', 'password': 'ui.profile', 'user': 'ui.admin',
+           'aiRun': 'ui.sheet', 'loadIntegrations': 'ui.admin', 'tunStart': 'ui.admin', 'tunStop': 'ui.admin',
+           'saveInteg': 'ui.admin', 'resetPw': 'ui.admin', 'theme': 'ui.profile', 'customer': 'ui.admin', 'custArchive': 'ui.admin',
+           'custDelete': 'ui.admin', 'custHere': 'ui.admin', 'skill': 'ui.admin', 'skillDelete': 'ui.admin', 'muRevoke': 'ui.admin'}
     seen = set()
     unmapped = []
     for c in raw['calls']:
@@ -214,7 +218,7 @@ def build(R, raw):
     f_files, f_sig = route_by[('GET', '/files/{x}')], route_by[('GET', '/files/signature/{x}')]
     for ui in ('ui.board', 'ui.gallery', 'ui.sheet', 'ui.map', 'ui.report'): E(ui, f_files, 'call', '<img src>')
     for ui in ('ui.sheet', 'ui.report'): E(ui, f_sig, 'call', '<img src>')
-    E('ui.profile', route_by[('GET', '/api/backup')], 'call', 'Yedek indir bağlantısı')
+    E('ui.admin', route_by[('GET', '/api/backup')], 'call', 'Yedek indir bağlantısı')
     E('ui.shell', 'api.events', 'call', 'EventSource')
     E('api.events', 'ui.shell', 'event', 'değişiklik → yeniden yükle')
     E('ui.camera', 'ui.queue', 'call', 'çevrimdışıyken')
@@ -233,6 +237,7 @@ def build(R, raw):
         if 'req.geo.reverse' in m: E(i, 'mod.geo', 'use', 'adres bul')
         if any(x.startswith('ai_review.') for x in m): E(i, 'mod.ai', 'use', 'gözlem iste')
         if any(x.startswith('secrets.') for x in m): E(i, 'mod.secrets', 'use')
+        if any(x.startswith('perms.') for x in m): E(i, 'mod.perms', 'use', 'yetki')
         if any(x.startswith(('tunnel.', 'req.tunnel.')) for x in m): E(i, 'mod.tunnel', 'use')
         if 'geo.distance_m' in m: E(i, 'mod.geo', 'use', 'uzaklık uyarısı')
         if 'publish' in m: E(i, 'api.events', 'event', 'olay yayını')
@@ -255,7 +260,8 @@ def build(R, raw):
     E('mod.db', 'data.db', 'write', 'bağlantı + göç')
     for t in raw['tables']: E('tbl.' + t, 'data.db', 'contain')
     E('mod.main', 'mod.server', 'use', 'sunucuyu başlatır'); E('mod.main', 'tbl.settings', 'write', 'kurulum kodu (özet)')
-    E('mod.server', 'mod.auth', 'use', 'oturum kontrolü'); E('mod.server', 'mod.db', 'use')
+    E('mod.server', 'mod.auth', 'use', 'oturum kontrolü'); E('mod.server', 'mod.db', 'use'); E('mod.server', 'mod.perms', 'use', 'olay süzgeci')
+    for t in ('tasks', 'users', 'projects'): E('mod.perms', 'tbl.' + t, 'read')
     # cihaz / dış
     E('ui.camera', 'ext.camera', 'external', 'fotoğraf çek'); E('ui.camera', 'ext.gps', 'external', 'en yakın müşteri')
     E('ui.sheet', 'ext.camera', 'external'); E('ui.sheet', 'ext.gps', 'external', 'çekim anı konumu')
@@ -300,11 +306,11 @@ def build(R, raw):
        ('mod.ai', 'Çıktı dar şemaya indirilir; "insan incelemesi zorunlu" her zaman doğru.'), ('tbl.ai_reviews', 'Sonuç saklanır.'),
        ('tbl.activity', 'Etkinlik geçmişine "AI gözlemi alındı" yazılır.'), ('api.events', 'Ekip haberdar olur; karar yine yöneticide.')]),
      dict(id='tunnel', name='Dışarıdan erişim', steps=[
-       ('ui.profile', 'Yönetici Entegrasyonlar\'da tünel türünü seçer.'), (P[('PATCH', '/api/admin/integrations')], 'Ayar kaydedilir; token varsa gizli dosyaya yazılır.'),
+       ('ui.admin', 'Sahip Yönetim › Sistem\'de tünel türünü seçer.'), (P[('PATCH', '/api/admin/integrations')], 'Ayar kaydedilir; token varsa gizli dosyaya yazılır.'),
        ('mod.secrets', 'Token 0600 izinli dosyada.'), (P[('POST', '/api/admin/tunnel/start')], 'Başlatma isteği.'),
        ('tbl.users', 'Eski kurulumdan kalan demo1234 parolalı hesap varsa tünel açılmaz.'), ('mod.tunnel', 'cloudflared arka planda başlatılır; token komut satırına yazılmaz.'),
        ('ext.termux', 'Gerekirse DNS (ör. OpenDNS) resolv.conf\'tan okunur.'), ('ext.cloudflare', 'Telefondan dışarıya şifreli bağlantı; port açmak gerekmez.'),
-       ('ui.profile', 'https://… adresi ekranda görünür, kopyalanır.')]),
+       ('ui.admin', 'https://… adresi ekranda görünür, kopyalanır.')]),
      dict(id='install', name='Kurulum ve yayın', steps=[
        ('ops.upload', 'Kod GitHub\'a gönderilir; önce "zaten yüklü mü" kontrolü.'), ('ext.github', 'Depo güncellenir.'), ('ops.ci', 'GitHub Actions testleri çalıştırır.'),
        ('ops.install', 'Telefonda tek satırlık kurulum.'), ('ops.termux', 'Paketler ve komutlar kurulur.'), ('ext.termux', 'Termux:Boot ile açılışta başlar.'),

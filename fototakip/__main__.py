@@ -70,7 +70,7 @@ def main(argv=None) -> int:
             from .api import ApiError, start_tunnel
             try:
                 start_tunnel(con, cfg, server.tunnel)
-                print("Dışarıdan erişim tüneli başlatılıyor; adres Profil › Entegrasyonlar ekranında görünecek.")
+                print("Dışarıdan erişim tüneli başlatılıyor; adres Yönetim › Sistem ekranında görünecek.")
             except ApiError as e:
                 print(f"Tünel başlatılmadı: {e.message}")
     finally:

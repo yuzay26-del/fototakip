@@ -185,8 +185,10 @@ class IntegrationTest(unittest.TestCase):
         self.assertEqual(sorted(st["demo_password_users"]), ["saha1", "saha2", "yonetici"])
         users = {u["username"]: u["id"] for u in cl.boot()["users"]}
         self.assertEqual(cl.call("POST", f"/api/admin/users/{users['saha1']}/password", {"password": "kisa"})[0], 400)
-        for name in ("saha1", "saha2", "yonetici"):
+        for name in ("saha1", "saha2"):
             self.assertEqual(cl.call("POST", f"/api/admin/users/{users[name]}/password", {"password": "Saha-2026-guclu"})[0], 200)
+        self.assertEqual(cl.call("POST", f"/api/admin/users/{users['yonetici']}/password", {"password": "Saha-2026-guclu"})[0], 403)
+        self.assertEqual(cl.call("PATCH", "/api/me/password", {"old": "demo1234", "new": "Saha-2026-guclu"})[0], 200)
         self.assertEqual(cl.call("GET", "/api/admin/integrations")[0], 200)  # kendi oturumu açık kaldı
         self.assertEqual(Client(self.base).login("saha1", "Saha-2026-guclu").boot()["me"]["username"], "saha1")
         status, st = cl.call("POST", "/api/admin/tunnel/start")

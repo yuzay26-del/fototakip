@@ -116,7 +116,7 @@ class Tunnel:
                 self.error = ""
         low = line.lower()
         if ("failed to" in low or "error" in low) and self.status == "starting" and "lookup" in low:
-            self.error = "DNS çözümlenemedi. Entegrasyonlar ekranından DNS sunucusu seç (ör. OpenDNS) ve tekrar başlat."
+            self.error = "DNS çözümlenemedi. Yönetim › Sistem ekranından DNS sunucusu seç (ör. OpenDNS) ve tekrar başlat."
         elif "failed to request quick tunnel" in low or "failed to unmarshal quick tunnel" in low:
             self.error = "Cloudflare hızlı tünel adresi veremedi (internet bağlantısı, DNS ya da Cloudflare tarafında geçici sorun). Birkaç dakika sonra tekrar dene."
         elif "unable to reach the origin service" in low or ("connection refused" in low and "origin" in low):

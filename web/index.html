@@ -3,22 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A6890">
+<meta name="theme-color" content="#F3F5F8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>FotoTakip</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/styles.css">
+<script>try{var t=localStorage.getItem("ft-style");if(t&&t!=="auto")document.documentElement.dataset.style=t}catch(e){}</script>
 </head>
 <body>
 <div id="login" class="login" hidden></div>
 <div id="app" hidden>
-  <header class="top"><div class="top-in" id="hdr"></div></header>
-  <main id="main"><div class="loading">Yükleniyor…</div></main>
   <nav class="dock" aria-label="Ana gezinme"><div class="dock-in" id="dock"></div></nav>
+  <div class="shell">
+    <header class="top"><div class="top-in" id="hdr"></div></header>
+    <main id="main"><div class="loading">Yükleniyor…</div></main>
+  </div>
 </div>
 <div id="sheet" hidden></div>
+<div id="modal" hidden></div>
 <div id="toasts" aria-live="polite"></div>
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/app.js"></script>

@@ -50,7 +50,7 @@ class SetupTest(unittest.TestCase):
     def test_setup_creates_manager_once(self):
         st, body = self.form(code=self.code.lower().replace("-", " "))  # büyük/küçük harf, tire, boşluk fark etmez
         self.assertEqual(st, 200, body)
-        self.assertEqual(body["user"]["role"], "manager")
+        self.assertEqual(body["user"]["role"], "owner")
         self.c.token = body["token"]
         self.assertEqual(self.c.boot()["me"]["username"], "lider")
         self.assertFalse(self.c.call("GET", "/api/health")[1]["needs_setup"])

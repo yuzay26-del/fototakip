@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta, timezone
 from fototakip import auth, db
 
 DEMO_PASSWORD = "demo1234"
+STRONG_PASSWORD = "Ornek-2026-guclu"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -33,7 +34,7 @@ def seed_demo(path: str, data_dir: str) -> None:
     try:
         with db.tx(con):
             users = {
-                "u1": ("yonetici", "Deneme Yönetici", "DY", "manager"),
+                "u1": ("yonetici", "Deneme Yönetici", "DY", "owner"),
                 "u2": ("saha1", "Saha Bir", "SB", "field"),
                 "u3": ("saha2", "Saha İki", "Sİ", "field"),
             }
@@ -43,6 +44,17 @@ def seed_demo(path: str, data_dir: str) -> None:
                 uid[key] = db.new_id()
                 con.execute("INSERT INTO users(id, username, name, short, role, pw_hash, created_at) VALUES (?,?,?,?,?,?,?)",
                             (uid[key], username, name, short, role, pw, db.now()))
+            # ekip lideri ve ikinci yönetici: güçlü parolalı (tünel testleri demo parolası arar)
+            pw2 = auth.hash_password(STRONG_PASSWORD)
+            for key, (username, name, short, role) in {"u4": ("lider", "Lider Bir", "LB", "lead"),
+                                                       "u5": ("yonetici2", "Yönetici İki", "Yİ", "manager")}.items():
+                uid[key] = db.new_id()
+                con.execute("INSERT INTO users(id, username, name, short, role, pw_hash, created_at) VALUES (?,?,?,?,?,?,?)",
+                            (uid[key], username, name, short, role, pw2, db.now()))
+            con.execute("UPDATE users SET lead_id = ? WHERE id = ?", (uid["u4"], uid["u2"]))  # saha1 liderin ekibinde
+            for key, sks in {"u2": ("sk_elektrik", "sk_tesisat"), "u3": ("sk_klima", "sk_boya"), "u4": ("sk_elektrik",)}.items():
+                for sk in sks:
+                    con.execute("INSERT INTO user_skills(user_id, skill_id) VALUES (?, ?)", (uid[key], sk))
 
             projects = {
                 "p1": ("Kadıköy · Moda Apt.", "Kadıköy", "Moda Apt. Yönetimi", "Site yöneticisi", "Caferağa Mah., Moda Cd. 112", 40.9862, 29.0270),

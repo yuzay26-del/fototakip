@@ -2,7 +2,7 @@
 
 Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla açılır ("önce") ve bir fotoğrafla kapanır ("sonra"). Yönetici iki fotoğrafı karşılaştırır, onaylar ya da gerekçe yazarak geri gönderir.
 
-**Durum: v0.4.** Tek bir Android telefonda Termux ile çalışır; ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
+**Durum: v0.5.** Tek bir Android telefonda Termux ile çalışır; ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
 
 ## Ne yapar
 
@@ -27,8 +27,11 @@ Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla 
 | Galeri, rapor | Galeri fotoğraf türüne göre süzülür. Rapor önce/sonra çiftlerinden oluşur, tarayıcıdan yazdırılır ya da PDF'e kaydedilir. |
 | Çevrimdışı | Bağlantı yokken çekilen fotoğraflar telefonda kuyruğa alınır, bağlantı gelince sırayla yüklenir. |
 | Canlı güncelleme | Biri işi değiştirince diğer ekranlar birkaç saniye içinde yenilenir. |
-| Roller | Yönetici her şeyi görür. Saha teknisyeni yalnızca kendi işlerini ve havuzu görür, işi tamamlayamaz. |
-| Yedek | Yönetici tek tıkla veritabanı ve fotoğrafları zip olarak indirir. |
+| Roller | Sahip › Yönetici › Ekip lideri › Teknisyen. Teknisyen yalnızca kendisine atanmış işleri ve o işlerin müşterilerini görür (ayrıntı aşağıda). |
+| Yönetim paneli | Müşteriler (telefon, e-posta, adres, not, arşiv), ekip ağacı (rol, ekip lideri, yetenek, açık/pasif, oturum kapatma), yetenekler, sistem ayarları. |
+| Yetenekler | Elektrik, tesisat, klima… İşe yetenek seçilir; atamada o yetenekteki kişiler iş yüküne göre önerilir. |
+| Görünüm | 5 stil: Sade, Gece, Saha (güneş altı yüksek kontrast), Okyanus, Orman. Telefon, tablet ve masaüstünde ayrı yerleşim. |
+| Yedek | Sahip tek tıkla veritabanı ve fotoğrafları zip olarak indirir. |
 
 Kaydedilen fotoğraflar döndürülür, 2560 px'e küçültülür ve EXIF'siz yazılır. Dosyada konum kalmaz; konum yalnızca veritabanında tutulur.
 
@@ -62,7 +65,7 @@ Kod yoksa indirir, varsa günceller ve kurar. Güncellemede `--repo` gerekmez. V
    bash ~/fototakip/scripts/install-termux.sh
    fototakip
    ```
-4. **İlk kurulum:** telefonun tarayıcısında `http://localhost:8080` adresine git. Kurulum ekranı açılır: Termux'ta yazan **kurulum kodunu**, adını, kullanıcı adını ve en az 8 karakterlik parolanı gir. Bu ilk hesap yöneticidir; ekip arkadaşlarını sonra Profil › Ekip bölümünden eklersin.
+4. **İlk kurulum:** telefonun tarayıcısında `http://localhost:8080` adresine git. Kurulum ekranı açılır: Termux'ta yazan **kurulum kodunu**, adını, kullanıcı adını ve en az 8 karakterlik parolanı gir. Bu ilk hesap **sahip** rolündedir; müşterileri ve ekibi **Yönetim** bölümünden eklersin.
 5. **Pil ayarı:** Ayarlar › Uygulamalar › Termux › Pil › **Kısıtlamasız**. Yapmazsan ekran kapanınca sunucu durabilir. Telefon açılınca kendiliğinden başlaması için [Termux:Boot](https://f-droid.org/packages/com.termux.boot/) uygulamasını da kur.
 
 Uygulama boş başlar: hazır hesap, örnek müşteri ya da örnek iş yoktur. Kurulum kodu tek kullanımlıktır, `~/fototakip-data/kurulum-kodu.txt` dosyasında da durur (Termux:Boot ile başladıysa buradan oku) ve hesap açılınca silinir. 5 hatalı denemede geçersiz olur; FotoTakip'i yeniden başlatınca yeni kod üretilir.
@@ -75,11 +78,26 @@ bash ~/fototakip/scripts/sifirla.sh
 
 Sunucuyu ve tüneli durdurur, verileri İndirilenler klasörüne yedekler (OpenAI anahtarı ve tünel token'ı yedeğe girmez), sonra veritabanını, fotoğrafları, imzaları, oturumları, parolaları ve gizli ayarları siler. Termux DNS ayarını kurulumdan önceki hâline döndürür. Telefonda kayıtlı GitHub kimlik bilgisini silmeyi ayrıca sorar. Onay için `SIL` yazman istenir; geri dönüşü yalnızca yedektir.
 
+## Roller ve izolasyon
+
+| Rol | Görür | Yapar |
+|---|---|---|
+| Sahip | Her şey | Her şey; bağlantılar (tünel, DNS, AI anahtarı), yedek, yönetici ekleme |
+| Yönetici | Tüm işler, müşteriler, kişiler | Ekip lideri ve teknisyen ekler/düzenler/pasifleştirir; yetenekler; iş ve müşteri siler |
+| Ekip lideri | Ekibinin işleri, atanmamış işler, müşteri rehberi | Ekibine iş atar, onaylar ya da geri gönderir, müşteri ekler |
+| Teknisyen | **Yalnızca kendisine atanmış işler** ve o işlerin müşterileri | Fotoğraf, işaret, kontrol listesi, yorum, imza; işi onaya gönderir |
+
+Kısıtlar sunucuda uygulanır: görülmeyen iş, fotoğraf, imza dosyası ve arama sonucu 404 döner; canlı güncelleme akışı da başkasının işini iletmez. Teknisyen diğer kişilerin kullanıcı adını, telefonunu, yeteneklerini görmez. Pasif hesap giriş yapamaz ve açık oturumları kapanır.
+
+## Yapay zeka ajanları için skill'ler
+
+`.claude/skills/` altında beş skill var: geliştirme, yetki, tasarım, kurulum, yayın. Claude Code bu depoda açıldığında bunları kendiliğinden tanır; diğer ajanlar için giriş noktası `AGENTS.md`.
+
 ## Dışarıdan güvenli erişim (ücretsiz tünel)
 
 Aynı Wi-Fi'deki telefonlar `http://<telefonun-ip>:8080` adresinden bağlanabilir. Ama kamera konumu, çevrimdışı açılış ve ana ekrana ekleme yalnızca HTTPS'te çalışır; sahadaki ekip de aynı ağda değildir. Bunun için uygulama ücretsiz bir Cloudflare tüneli açar. Bağlantı telefondan dışarıya doğru kurulur: modemde port açmak gerekmez, mobil veride de çalışır.
 
-Uygulamada **Profil › Entegrasyonlar › Dışarıdan erişim** (yalnız yönetici):
+Uygulamada **Yönetim › Sistem › Dışarıdan erişim** (yalnız sahip):
 
 | Tür | Gerekenler | Adres |
 | --- | --- | --- |
@@ -95,7 +113,7 @@ Tünel için `cloudflared` gerekir: kurulumda sorulur ya da `pkg install cloudfl
 
 ### DNS ayarı
 
-Termux'ta `cloudflared` gibi programlar bazen telefonun DNS'ini bulamaz ve tünel "lookup" hatasıyla durur. Çözüm, Termux içinde bir DNS sunucusu seçmek: kurulumda menü olarak sorulur, sonra uygulamadaki Entegrasyonlar ekranından ya da komutla değiştirilir:
+Termux'ta `cloudflared` gibi programlar bazen telefonun DNS'ini bulamaz ve tünel "lookup" hatasıyla durur. Çözüm, Termux içinde bir DNS sunucusu seçmek: kurulumda menü olarak sorulur, sonra uygulamadaki Yönetim › Sistem ekranından ya da komutla değiştirilir:
 
 ```bash
 fototakip-dns opendns      # ya da cloudflare, google, quad9; eski hâline dönmek için: geri
@@ -113,7 +131,7 @@ curl -fsSL https://raw.githubusercontent.com/KULLANICI/fototakip/main/scripts/in
 
 Bir fotoğraf için OpenAI'den gözlem notu alır: görünen hasar, açıkta kalan parçalar, etiketleme, fotoğraf kalitesi. **Karar vermez.** Her sonuçta "insan incelemesi zorunlu" yazar ve onay yine yöneticidedir.
 
-- Açmak için: Profil › Entegrasyonlar › AI fotoğraf incelemesi. OpenAI API anahtarını gir, modeli seç (varsayılan `gpt-4.1-mini`).
+- Açmak için: Yönetim › Sistem › AI fotoğraf incelemesi (sahip). OpenAI API anahtarını gir, modeli seç (varsayılan `gpt-4.1-mini`).
 - İş ayrıntısında fotoğrafın altında **AI gözlemi al** düğmesi çıkar. Sonuç saklanır; aynı fotoğraf için tekrar ücret ödenmez. Yönetici "Yeniden incele" diyebilir.
 - Fotoğraf OpenAI'ye gönderilmeden önce EXIF ve konum bilgisi silinir. Kullanım OpenAI hesabından ücretlendirilir.
 - Örnek çizim fotoğraflar incelenemez; gerçek bir fotoğraf gerekir.
@@ -137,7 +155,7 @@ fototakip --geocoder off
 
 ## Yedek
 
-- Uygulamadan: Profil › **Yedek indir** (yönetici).
+- Uygulamadan: Yönetim › Sistem › **Yedek indir** (sahip).
 - Termux'tan: `bash ~/fototakip/scripts/backup.sh`. Yedek, İndirilenler klasörüne gider.
 
 Veriler `~/fototakip-data` klasöründe durur. Telefon kaybolursa yedeği olmayan veri gider.
@@ -164,9 +182,10 @@ python3 -m unittest discover -s tests -v           # testler (Pillow'lu ve Pillo
 ```
 
 ```
-fototakip/   sunucu: api.py (uç noktalar), server.py (HTTP, SSE), db.py (şema, göçler), geo.py (uzaklık, adres bulma), images.py (EXIF, küçük resim), tunnel.py, ai_review.py
+fototakip/   sunucu: api.py (uç noktalar), perms.py (rol ve izolasyon), server.py (HTTP, SSE), db.py (şema, göçler), geo.py (uzaklık, adres bulma), images.py (EXIF, küçük resim), tunnel.py, ai_review.py
 web/         arayüz: index.html, app.js, styles.css, sw.js, vendor/leaflet (derleme adımı yok)
 scripts/     install.sh, install-termux.sh, github-upload.sh, backup.sh, sifirla.sh
+.claude/     skills/: ajanlar için kurulum, geliştirme, yetki, tasarım, yayın rehberleri
 tests/       API uçtan uca testleri; ornek_veri.py ve ornek_fotolar/ yalnızca testlerde kullanılır
 ```
 

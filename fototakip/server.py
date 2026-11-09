@@ -15,7 +15,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import api, auth, db, geo, tunnel
+from . import api, auth, db, geo, perms, tunnel
 
 COOKIE = "ft_session"
 
@@ -226,6 +226,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         bus: EventBus = self.server.bus
         q = bus.subscribe()
+        vcon = db.connect(self.server.cfg.db_path)  # olayları kullanıcının görebildiklerine göre süzmek için
         try:
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -237,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
             while not self.server.stopping.is_set():
                 try:
-                    ev = q.get(timeout=15)
+                    ev = perms.event_for(vcon, user, q.get(timeout=15))
                     self.wfile.write(f"data: {json.dumps(ev)}\n\n".encode())
                 except queue.Empty:
                     self.wfile.write(b": ping\n\n")
@@ -246,6 +247,7 @@ class Handler(BaseHTTPRequestHandler):
             pass
         finally:
             bus.unsubscribe(q)
+            vcon.close()
             self.close_connection = True
 
     # ---- yönlendirme ----
