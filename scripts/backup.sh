@@ -14,7 +14,11 @@ trap 'rm -rf "$TMP"' EXIT
 python3 - "$DATA_DIR/fototakip.db" "$TMP/fototakip.db" <<'EOF'
 import sqlite3, sys
 src, dst = sqlite3.connect(sys.argv[1]), sqlite3.connect(sys.argv[2])
-src.backup(dst); dst.close(); src.close()
+src.backup(dst); src.close()
+# Açık oturumlar ve kurulum kodu yedeğe girmez (uygulamadaki "Yedek indir" ile aynı kural).
+dst.execute("DELETE FROM sessions")
+dst.execute("DELETE FROM settings WHERE key IN ('setup_code', 'setup_fails')")
+dst.commit(); dst.execute("VACUUM"); dst.close()
 EOF
 python3 - "$OUT" "$TMP/fototakip.db" "$DATA_DIR" <<'EOF'
 import os, sys, zipfile

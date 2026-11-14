@@ -1,6 +1,6 @@
 /* FotoTakip service worker: uygulama kabuğunu ve son verileri önbellekte tutar.
    Yalnızca güvenli bağlamda (https veya localhost) çalışır. */
-const VERSION = 'ft-0.5.0';
+const VERSION = 'ft-0.5.1';
 const TILES = 'ft-tiles';
 const TILE_LIMIT = 800; // yaklaşık 15-20 MB
 const SHELL = ['/', '/app.js', '/styles.css', '/manifest.webmanifest', '/icon.svg', '/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css'];

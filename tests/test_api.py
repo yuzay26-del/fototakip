@@ -322,6 +322,84 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(status, 413)
 
 
+    # ---- 0.5.1: silme, yedek, sağlamlık ----
+    def _photos_on_disk(self, pid):
+        return [n for n in os.listdir(os.path.join(self.tmp.name, "photos")) if n.startswith(pid)]
+
+    def test_deleted_task_removes_photo_and_signature_files(self):
+        mgr = self.c("yonetici")
+        p = self.project(mgr.boot(), "Kadıköy")
+        status, r = mgr.call("POST", f"/api/photos?type=before&new_task=1&project_id={p['id']}&title=Silinecek", raw=JPEG_A + b"sil-1")
+        self.assertEqual(status, 200)
+        tid, pid = r["task_id"], r["photo_id"]
+        self.assertEqual(mgr.call("POST", f"/api/tasks/{tid}/signature?signer=Deneme", raw=PNG_1PX, ctype="image/png")[0], 200)
+        sig = os.path.join(self.tmp.name, "signatures", f"{tid}.png")
+        self.assertTrue(self._photos_on_disk(pid))
+        self.assertTrue(os.path.isfile(sig))
+        self.assertEqual(mgr.call("DELETE", f"/api/tasks/{tid}")[0], 200)
+        self.assertEqual(mgr.call("GET", f"/files/{pid}")[0], 404)
+        self.assertEqual(self._photos_on_disk(pid), [], "Silinen işin fotoğraf dosyaları diskte kalmamalı")
+        self.assertFalse(os.path.isfile(sig), "Silinen işin imza dosyası diskte kalmamalı")
+
+    def test_shared_photo_survives_until_last_link_removed(self):
+        mgr = self.c("yonetici")
+        p = self.project(mgr.boot(), "Kadıköy")
+        img = JPEG_A + b"ortak-1"
+        _, a = mgr.call("POST", f"/api/photos?type=issue&new_task=1&project_id={p['id']}&title=Ortak%20A", raw=img)
+        _, b = mgr.call("POST", f"/api/photos?type=issue&new_task=1&project_id={p['id']}&title=Ortak%20B", raw=img)
+        pid = a["photo_id"]
+        self.assertEqual(b["photo_id"], pid)
+        self.assertTrue(b["already_stored"])
+        self.assertEqual(mgr.call("DELETE", f"/api/tasks/{a['task_id']}/photos/{pid}")[0], 200)
+        self.assertEqual(mgr.call("GET", f"/files/{pid}")[0], 200, "Başka işe bağlı fotoğraf silinmemeli")
+        self.assertTrue(self._photos_on_disk(pid))
+        self.assertEqual(mgr.call("DELETE", f"/api/tasks/{b['task_id']}/photos/{pid}")[0], 200)
+        self.assertEqual(mgr.call("GET", f"/files/{pid}")[0], 404)
+        self.assertEqual(self._photos_on_disk(pid), [])
+        # aynı fotoğraf sonradan yeniden yüklenebilir
+        status, c = mgr.call("POST", f"/api/photos?type=issue&task_id={b['task_id']}", raw=img)
+        self.assertEqual(status, 200)
+        self.assertFalse(c["already_stored"])
+
+    def test_backup_has_no_sessions(self):
+        import sqlite3
+        mgr = self.c("yonetici")
+        status, data = mgr.call("GET", "/api/backup")
+        self.assertEqual(status, 200)
+        with tempfile.TemporaryDirectory() as d:
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                z.extract("fototakip.db", d)
+            con = sqlite3.connect(os.path.join(d, "fototakip.db"))
+            try:
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0], 0, "Yedekte açık oturum olmamalı")
+                self.assertGreater(con.execute("SELECT COUNT(*) FROM users").fetchone()[0], 0)
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM settings WHERE key LIKE 'setup_%'").fetchone()[0], 0)
+            finally:
+                con.close()
+            with open(os.path.join(d, "fototakip.db"), "rb") as f:
+                self.assertNotIn(mgr.token.encode(), f.read(), "Oturum anahtarı yedek dosyasında iz bırakmamalı")
+        self.assertEqual(mgr.call("GET", "/api/bootstrap")[0], 200, "Yedek almak açık oturumu kapatmamalı")
+
+    def test_malformed_input_is_rejected_not_crashed(self):
+        import http.client
+        cl = Client(self.base)
+        self.assertEqual(cl.call("POST", "/api/login", {"username": "yonetici", "password": 12345678})[0], 401)
+        self.assertEqual(cl.call("POST", "/api/login", {"username": "yonetici", "password": ["x"]})[0], 401)
+        mgr = self.c("yonetici")
+        self.assertEqual(mgr.call("POST", "/api/projects", {"name": "Yarım konum", "lat": "41.0"})[0], 400)
+        self.assertEqual(mgr.call("POST", "/api/users", {"username": "sayi.parola", "name": "Sayı", "password": 12345678})[0], 400)
+        host, port = self.server.server_address[:2]
+        conn = http.client.HTTPConnection(host, port, timeout=5)
+        try:
+            conn.putrequest("POST", "/api/login")
+            conn.putheader("Content-Type", "application/json")
+            conn.putheader("Content-Length", "-5")
+            conn.endheaders()
+            self.assertEqual(conn.getresponse().status, 400, "Eksi Content-Length bağlantıyı asmamalı")
+        finally:
+            conn.close()
+
+
 class ExifTest(unittest.TestCase):
     def test_parse(self):
         meta = images.read_exif(JPEG_GPS)

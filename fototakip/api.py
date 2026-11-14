@@ -72,6 +72,12 @@ def text_field(body: dict, key: str, required=True, max_len=500) -> str:
     return v
 
 
+def password_field(body: dict, key: str = "password") -> str:
+    """Parola alanı; metin değilse (sayı, liste…) boş sayılır ki doğrulama 500 yerine 400/401 dönsün."""
+    v = body.get(key)
+    return v if isinstance(v, str) else ""
+
+
 def get_task(req, task_id: str, for_write=False):
     t = req.con.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not t or not perms.can_see_task(req.con, req.user, t):
@@ -188,7 +194,7 @@ def first_setup(req):
     username = text_field(body, "username", max_len=32).lower()
     if not re.fullmatch(r"[a-z0-9._-]{3,32}", username):
         raise ApiError(400, "bad_username", "Kullanıcı adı 3-32 karakter: küçük harf, rakam, nokta, tire.")
-    password = body.get("password") or ""
+    password = password_field(body)
     if len(password) < 8:
         raise ApiError(400, "weak_password", "Yönetici parolası en az 8 karakter olmalı.")
     if password.lower() in (DEMO_PASSWORD, username, "12345678", "password", "parola123"):
@@ -221,7 +227,7 @@ _FAIL_LOCK = threading.Lock()
 def login(req):
     body = req.json()
     username = text_field(body, "username", max_len=64)
-    password = body.get("password") or ""
+    password = password_field(body)
     key = username.lower()
     now = time.monotonic()
     with _FAIL_LOCK:
@@ -255,9 +261,9 @@ def logout(req):
 def change_password(req):
     body = req.json()
     row = req.con.execute("SELECT pw_hash FROM users WHERE id = ?", (req.user["id"],)).fetchone()
-    if not auth.verify_password(body.get("old") or "", row["pw_hash"]):
+    if not auth.verify_password(password_field(body, "old"), row["pw_hash"]):
         raise ApiError(400, "bad_credentials", "Mevcut parola hatalı.")
-    new = body.get("new") or ""
+    new = password_field(body, "new")
     if len(new) < 8:
         raise ApiError(400, "weak_password", "Yeni parola en az 8 karakter olmalı.")
     with db.tx(req.con):
@@ -386,7 +392,7 @@ def create_user(req):
     if not re.fullmatch(r"[a-z0-9._-]{3,32}", username):
         raise ApiError(400, "bad_username", "Kullanıcı adı 3-32 karakter: küçük harf, rakam, nokta, tire.")
     name = text_field(body, "name", max_len=80)
-    password = body.get("password") or ""
+    password = password_field(body)
     if len(password) < 8:
         raise ApiError(400, "weak_password", "Parola en az 8 karakter olmalı.")
     uid = db.new_id()
@@ -560,14 +566,7 @@ def create_project(req):
     body = req.json()
     name = text_field(body, "name", max_len=120)
     short = text_field(body, "short", required=False, max_len=40) or name.split("·")[0].strip()[:40]
-    lat, lng = body.get("lat"), body.get("lng")
-    try:
-        lat = float(lat) if lat not in (None, "") else None
-        lng = float(lng) if lng not in (None, "") else None
-    except (TypeError, ValueError):
-        raise ApiError(400, "bad_gps", "Enlem ve boylam sayı olmalı.")
-    if (lat is not None and not -90 <= lat <= 90) or (lng is not None and not -180 <= lng <= 180):
-        raise ApiError(400, "bad_gps", "Enlem -90..90, boylam -180..180 aralığında olmalı.")
+    lat, lng = _coords(body)
     pid = db.new_id()
     address = text_field(body, "address", False, 200)
     loc_src = body.get("location_source") if body.get("location_source") in ("manual", "device", "map", "photo") else "manual"
@@ -819,10 +818,44 @@ def delete_task(req):
     need_manager(req)
     with db.tx(req.con):
         t = get_task(req, req.match["tid"])
+        pids = [r[0] for r in req.con.execute("SELECT photo_id FROM task_photos WHERE task_id = ?", (t["id"],))]
         req.con.execute("UPDATE checklist SET proof_photo_id = NULL WHERE task_id = ?", (t["id"],))
         req.con.execute("DELETE FROM tasks WHERE id = ?", (t["id"],))
+        names = purge_orphans(req.con, pids)
+    remove_photo_files(req.cfg, names)
+    try:
+        os.remove(os.path.join(req.cfg.data_dir, "signatures", f"{t['id']}.png"))
+    except OSError:
+        pass
     req.publish({"type": "task", "id": t["id"]})
     return {"ok": True}
+
+
+def purge_orphans(con, photo_ids) -> list[str]:
+    """Hiçbir işe bağlı kalmayan fotoğrafların kaydını siler (tx içinde çağrılır).
+
+    Silinecek dosya adlarını döner; dosyalar işlem tamamlandıktan sonra remove_photo_files ile silinir.
+    Başka bir işe de bağlı olan fotoğrafa dokunulmaz.
+    """
+    names: list[str] = []
+    for pid in dict.fromkeys(photo_ids):
+        if con.execute("SELECT 1 FROM task_photos WHERE photo_id = ? LIMIT 1", (pid,)).fetchone():
+            continue
+        row = con.execute("SELECT path, thumb_path FROM photos WHERE id = ?", (pid,)).fetchone()
+        if not row:
+            continue
+        con.execute("UPDATE checklist SET proof_photo_id = NULL WHERE proof_photo_id = ?", (pid,))
+        con.execute("DELETE FROM photos WHERE id = ?", (pid,))  # işaretler ve AI gözlemi birlikte silinir
+        names += [row["path"], row["thumb_path"]]
+    return names
+
+
+def remove_photo_files(cfg, names) -> None:
+    for name in set(names):
+        try:
+            os.remove(os.path.join(cfg.data_dir, "photos", name))
+        except OSError:
+            pass
 
 
 # ---------- fotoğraflar ----------
@@ -864,13 +897,11 @@ def upload_photo(req):
 
     try:
         result = _link_photo(req, q, ptype, digest, existing, meta, device, photo_id)
-    except BaseException:
+    except BaseException as exc:
         if meta:  # kaydedilen ama veritabanına girmeyen dosyaları temizle
-            for name in {meta["path"], meta["thumb_path"]}:
-                try:
-                    os.remove(os.path.join(req.cfg.data_dir, "photos", name))
-                except OSError:
-                    pass
+            remove_photo_files(req.cfg, [meta["path"], meta["thumb_path"]])
+        if isinstance(exc, sqlite3.IntegrityError):  # aynı fotoğraf aynı anda iki istekle geldi ya da o sırada silindi
+            raise ApiError(409, "upload_conflict", "Bu fotoğraf o anda başka bir istekle işleniyordu. Tekrar dene.") from exc
         raise
     req.publish({"type": "task", "id": result["task_id"]})
     if result.pop("_geocode", False):
@@ -941,9 +972,12 @@ def unlink_photo(req):
         req.con.execute("UPDATE checklist SET proof_photo_id = NULL, done = CASE WHEN require_proof = 1 THEN 0 ELSE done END "
                         "WHERE task_id = ? AND proof_photo_id = ?", (t["id"], req.match["pid"]))
         cur = req.con.execute("DELETE FROM task_photos WHERE task_id = ? AND photo_id = ?", (t["id"], req.match["pid"]))
+        names = []
         if cur.rowcount:
             log(req.con, t["id"], req.user["id"], "Bir fotoğrafı işten kaldırdı")
             touch(req.con, t["id"])
+            names = purge_orphans(req.con, [req.match["pid"]])
+    remove_photo_files(req.cfg, names)
     req.publish({"type": "task", "id": t["id"]})
     return {"ok": True}
 
@@ -1126,6 +1160,7 @@ def backup(req):
         dst = sqlite3.connect(snap)
         with db.WRITE_LOCK:
             req.con.backup(dst)
+        db.scrub_backup(dst)
         dst.close()
         stamp = datetime.now().strftime("%Y%m%d-%H%M")
         zpath = os.path.join(tmp, f"fototakip-yedek-{stamp}.zip")
@@ -1283,7 +1318,7 @@ def tunnel_stop(req):
 @route("POST", r"/api/admin/users/(?P<uid>\w+)/password")
 def reset_user_password(req):
     """Yönetici, yönetebildiği bir kişinin parolasını sıfırlar."""
-    new = req.json().get("password") or ""
+    new = password_field(req.json())
     target = req.con.execute("SELECT * FROM users WHERE id = ?", (req.match["uid"],)).fetchone()
     if not target:
         raise ApiError(404, "not_found", "Kişi bulunamadı.")

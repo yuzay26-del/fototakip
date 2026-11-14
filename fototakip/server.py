@@ -89,6 +89,8 @@ class Request:
                 length = int(self.h.headers.get("Content-Length") or 0)
             except ValueError:
                 raise api.ApiError(400, "bad_length", "Content-Length geçersiz.")
+            if length < 0:
+                raise api.ApiError(400, "bad_length", "Content-Length geçersiz.")
             if length > limit:
                 raise api.ApiError(413, "too_large", f"Dosya çok büyük. Sınır {limit // (1024 * 1024)} MB.")
             self._body = self.h.rfile.read(length) if length else b""
@@ -308,7 +310,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             length = 0
-        if length and length <= 64 * 1024 * 1024:
+        if 0 < length <= 64 * 1024 * 1024:
             try:
                 self.rfile.read(length)
             except Exception:

@@ -2,7 +2,7 @@
 
 Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla açılır ("önce") ve bir fotoğrafla kapanır ("sonra"). Yönetici iki fotoğrafı karşılaştırır, onaylar ya da gerekçe yazarak geri gönderir.
 
-**Durum: v0.5.** Tek bir Android telefonda Termux ile çalışır; ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
+**Durum: v0.5.1.** Tek bir Android telefonda Termux ile çalışır; ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
 
 ## Ne yapar
 
@@ -10,7 +10,7 @@ Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla 
 | --- | --- |
 | Fotoğraftan iş | Kamerayla çek ya da galeriden seç, proje ve tür seç: iş oluşur. Birden fazla fotoğraf tek işe gider. |
 | Pano | Kanban, liste ve takvim görünümü. Mobilde kart kaydırılarak, masaüstünde sürüklenerek durum değişir. |
-| Havuz | Atanmamış işleri saha ekibi görür ve "Üstlen" ile kendine alır. |
+| Havuz | Atanmamış işleri ekip lideri ve yönetici görür; "Üstlen" ile kendine alır ya da ekibinden birine atar. Teknisyen havuzu görmez. |
 | Fotoğraf üzerine işaret | Sorunlu noktaya dokunup not bırakılır; not yorum olarak da kaydedilir. |
 | Önce / sonra | Kaydırıcıyla iki fotoğraf üst üste karşılaştırılır. |
 | Kontrol listesi | Maddeler fotoğraf kanıtına bağlanır. "Foto zorunlu" maddeler kanıtsız işaretlenemez. |
@@ -44,6 +44,8 @@ curl -fsSL https://raw.githubusercontent.com/KULLANICI/fototakip/main/scripts/in
 ```
 
 Kod yoksa indirir, varsa günceller ve kurar. Güncellemede `--repo` gerekmez. Verilere (`~/fototakip-data`) dokunmaz. Bittikten sonra `fototakip` yazıp başlat.
+
+Kurulum sırasında iki soru sorulur (DNS ve tünel aracı); ikisinde de Enter'a basmak güvenli varsayılanı seçer. Hiç soru sorulmasın istersen komutun sonuna `--evet` ekle.
 
 ## Telefona kurulum: adım adım (Termux)
 
@@ -160,7 +162,13 @@ fototakip --geocoder off
 
 Veriler `~/fototakip-data` klasöründe durur. Telefon kaybolursa yedeği olmayan veri gider.
 
+Yedekte hesaplar, parola özetleri ve müşteri bilgileri bulunur; kimseyle paylaşma. Açık oturumlar, kurulum kodu, OpenAI anahtarı ve tünel token'ı yedeğe girmez.
+
+Geri yüklemek için FotoTakip'i durdur, zip'i boş bir `~/fototakip-data` klasörüne aç (`fototakip.db`, `photos/`, `signatures/`) ve yeniden başlat. Herkes yeniden giriş yapar.
+
 ## GitHub'a yükleme
+
+Telefonun GitHub'a yükleme yapması gerekmez: telefon yalnızca indirir (yukarıdaki tek satır). Kodu telefonda elle değiştirdiysen ve depoya göndermek istiyorsan:
 
 ```bash
 bash scripts/github-upload.sh --check     # yalnızca durumu raporlar
@@ -208,7 +216,7 @@ Uç noktalar, tablo erişimleri ve arayüz çağrıları koddan otomatik çıkar
 - Canlı güncellemede her değişiklik tüm listeyi yeniden yükler. Yüzlerce işe kadar sorun çıkarmaz.
 - Malzeme/parça ve sahada geçen süre takibi henüz yok.
 - Harita şimdilik sokak haritası; uydu görüntüsü yok (ücretsiz ve kullanım şartları uygun bir kaynak gerekiyor).
-- Yapay zeka ajanlarıyla Faz 1 geliştirmesi (FastAPI + React iskeleti) bu dalda değil, `faz1-iskelet` dalında.
+- Silinen bir işin fotoğrafları ve imzası sunucudan da silinir; geri getirmenin tek yolu yedektir.
 
 ## Lisans
 

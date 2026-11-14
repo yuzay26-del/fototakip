@@ -28,7 +28,8 @@ done
 # curl | bash ile çalışırken bile soruları klavyeden okuyabilmek için /dev/tty kullanılır
 ask() {  # ask "soru" varsayılan -> cevap ANSWER değişkenine yazılır
   ANSWER="$2"
-  if [ "$ASSUME_YES" = 0 ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+  # /dev/tty dosya olarak görünse bile terminal yoksa açılamaz (ör. Termux:Boot, otomasyon); gerçekten açmayı dene.
+  if [ "$ASSUME_YES" = 0 ] && ( : > /dev/tty ) 2>/dev/null; then
     printf '%s ' "$1" > /dev/tty
     IFS= read -r ANSWER < /dev/tty || ANSWER="$2"
     [ -n "$ANSWER" ] || ANSWER="$2"
@@ -39,23 +40,30 @@ say()  { printf '\033[1;36m▸ %s\033[0m\n' "$*"; }
 ok()   { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 
+# "curl | bash" ile çağrıldığında standart girdi kurulum betiğinin kendisidir; paket yöneticisi
+# oradan okumasın diye girdisi kapatılır, ayar dosyası soruları varsayılanla geçilir.
+pkg_quiet() {
+  DEBIAN_FRONTEND=noninteractive pkg "$@" </dev/null
+}
+PKG_OPTS=(-y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+
 IS_TERMUX=0
 if [ -n "${PREFIX:-}" ] && [[ "$PREFIX" == *com.termux* ]]; then IS_TERMUX=1; fi
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 [ "$IS_TERMUX" = 1 ] || { BIN_DIR="$HOME/.local/bin"; warn "Termux dışında çalışıyor; sistem paketleri kurulmayacak."; }
 
 if [ ! -f "$APP_DIR/fototakip/__main__.py" ]; then
-  echo "Hata: $APP_DIR içinde FotoTakip kodu yok. Zip'i açtığın klasörde çalıştır." >&2
+  echo "Hata: $APP_DIR içinde FotoTakip kodu yok. Betiği FotoTakip klasörünün içinden çalıştır." >&2
   exit 1
 fi
 
 if [ "$IS_TERMUX" = 1 ]; then
   say "Termux paketleri güncelleniyor"
-  pkg update -y
+  pkg_quiet update -y || warn "Paket listesi güncellenemedi; mevcut listeyle devam ediliyor."
   say "Python kuruluyor"
-  pkg install -y python
+  pkg_quiet install "${PKG_OPTS[@]}" python || { echo "Hata: Python kurulamadı. İnternet bağlantısını kontrol et; 'pkg upgrade' çalıştırıp tekrar dene." >&2; exit 1; }
   say "Pillow kuruluyor (fotoğraf döndürme ve küçük resim için)"
-  if pkg install -y python-pillow; then ok "Pillow kuruldu"; else warn "Pillow kurulamadı; uygulama çalışır ama fotoğraflar küçültülmez."; fi
+  if pkg_quiet install "${PKG_OPTS[@]}" python-pillow; then ok "Pillow kuruldu"; else warn "Pillow kurulamadı; uygulama çalışır ama fotoğraflar küçültülmez."; fi
 fi
 
 PY="$(command -v python3 || command -v python || true)"
@@ -69,8 +77,12 @@ ok "Python: $("$PY" --version)"
 # ---------- DNS ayarı ----------
 if [ "$IS_TERMUX" = 1 ]; then
   RESOLV="$PREFIX/etc/resolv.conf"
+  if [ -z "$DNS_CHOICE" ] && [ "$ASSUME_YES" = 1 ]; then
+    DNS_CHOICE=dokunma
+  fi
   if [ -z "$DNS_CHOICE" ]; then
-    CUR="$(grep '^nameserver' "$RESOLV" 2>/dev/null | awk '{print $2}' | head -2 | tr '\n' ' ')"
+    # resolv.conf yoksa ya da içinde nameserver satırı yoksa grep hata döner; kurulum bu yüzden durmamalı.
+    CUR="$( (grep '^nameserver' "$RESOLV" 2>/dev/null || true) | awk '{print $2}' | head -2 | tr '\n' ' ')"
     echo
     echo "DNS sunucusu (Termux içindeki programlar için; cloudflared bazen sistem DNS'ini bulamaz):"
     echo "  1) OpenDNS      208.67.222.222, 208.67.220.220"
@@ -90,6 +102,7 @@ if [ "$IS_TERMUX" = 1 ]; then
     *) warn "Bilinmeyen DNS seçimi: $DNS_CHOICE (dokunulmadı)"; NS="" ;;
   esac
   if [ -n "$NS" ]; then
+    mkdir -p "$(dirname "$RESOLV")"
     if [ -f "$RESOLV" ] && [ ! -f "$RESOLV.fototakip-yedek" ]; then cp "$RESOLV" "$RESOLV.fototakip-yedek"; fi
     { echo "# FotoTakip: $DNS_CHOICE"; for ip in $NS; do echo "nameserver $ip"; done; } > "$RESOLV"
     ok "DNS: $DNS_CHOICE ($NS). Eski ayar: $RESOLV.fototakip-yedek"
@@ -104,7 +117,7 @@ if [ "$IS_TERMUX" = 1 ]; then
   fi
   if [ "$WITH_TUNNEL" = 1 ] && ! command -v cloudflared >/dev/null 2>&1; then
     say "cloudflared kuruluyor"
-    if pkg install -y cloudflared; then ok "cloudflared kuruldu"; else warn "cloudflared kurulamadı; daha sonra 'pkg install cloudflared' ile kurabilirsin."; fi
+    if pkg_quiet install "${PKG_OPTS[@]}" cloudflared; then ok "cloudflared kuruldu"; else warn "cloudflared kurulamadı; daha sonra 'pkg install cloudflared' ile kurabilirsin."; fi
   fi
 fi
 

@@ -295,6 +295,18 @@ def next_task_no(con: sqlite3.Connection) -> int:
     return n
 
 
+def scrub_backup(dst: sqlite3.Connection) -> None:
+    """Yedek kopyasından açık oturumları ve kurulum kodunu çıkarır.
+
+    Oturum anahtarları yedekte kalırsa, zip'i eline geçiren biri parola bilmeden giriş yapabilir.
+    VACUUM, silinen satırların dosyanın boş sayfalarında kalmasını da önler.
+    """
+    dst.execute("DELETE FROM sessions")
+    dst.execute("DELETE FROM settings WHERE key IN ('setup_code', 'setup_fails')")
+    dst.commit()
+    dst.execute("VACUUM")
+
+
 def is_empty(path: str) -> bool:
     con = connect(path)
     try:
