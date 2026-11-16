@@ -15,7 +15,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import api, auth, db, geo, perms, tunnel
+from . import api, auth, db, geo, perms, tunnel, web_dir
 
 COOKIE = "ft_session"
 
@@ -357,6 +357,6 @@ def make_server(cfg: Config) -> FotoTakipServer:
     os.makedirs(cfg.data_dir, exist_ok=True)
     os.makedirs(os.path.join(cfg.data_dir, "photos"), exist_ok=True)
     if not cfg.web_dir:
-        cfg.web_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
+        cfg.web_dir = web_dir()
     db.init(cfg.db_path)
     return FotoTakipServer(cfg)
