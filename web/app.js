@@ -1081,7 +1081,7 @@ function viewIntegrations() {
       <div class="sec-h" style="margin:0"><h4>${ic('nav', 's')}Dışarıdan erişim</h4><span class="pill ${stCls}">${stName2}</span></div>
       ${T.run_url ? `<div class="url-box"><a href="${esc(T.run_url)}" target="_blank" rel="noopener" class="mono">${esc(T.run_url)}</a><button class="btn" data-act="copyUrl">Kopyala</button></div>` : ''}
       ${T.run_error ? `<div class="note" style="border-color:var(--danger)"><b>Sorun:</b> ${esc(T.run_error)}</div>` : ''}
-      ${demoUsers.length ? `<div class="note" style="border-color:var(--danger)"><b>İnternete açmadan önce:</b> şu hesapların parolası hâlâ demo1234. Yeni parola ver:
+      ${demoUsers.length ? `<div class="note dikey" style="border-color:var(--danger)"><span><b>İnternete açmadan önce:</b> şu hesapların parolası hâlâ demo1234. Yeni parola ver:</span>
         ${demoUsers.map(u => `<form class="row" data-form="resetPw" data-uid="${u.id}" style="margin-top:6px"><span style="min-width:70px">@${esc(u.username)}</span><input id="rp-${u.id}" class="input" type="password" minlength="8" placeholder="En az 8 karakter" data-keep autocomplete="new-password" style="flex:1 1 140px" required><button class="btn" type="submit">Değiştir</button></form>`).join('')}</div>` : ''}
       <div class="opts">
         ${radio('off', 'Kapalı', 'Yalnızca bu telefon ve aynı Wi-Fi.')}
@@ -1300,6 +1300,8 @@ function render() {
   if (!S.me) return;
   const kept = keepInputs();
   applyBackdrop(); renderHeader(); renderDock(); measureChrome(); renderMain();
+  const tab = document.querySelector('.tabs [aria-selected="true"]');  // dar ekranda seçili sekme görünür kalsın
+  if (tab) { const bar = tab.parentElement; if (tab.offsetLeft + tab.offsetWidth > bar.scrollLeft + bar.clientWidth || tab.offsetLeft < bar.scrollLeft) bar.scrollLeft = tab.offsetLeft - 16; }
   if (!(S.open && sigDirty && document.getElementById('sig-pad'))) renderSheet();
   restoreInputs(kept);
 }

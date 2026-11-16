@@ -249,7 +249,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 :root[data-style="saha"] .linkbtn { color: #0038A8; text-decoration: underline; }
 
 /* ---------- yönetim ---------- */
-.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; border-bottom: var(--bw) solid var(--line); }
+.tabs { position: relative; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; border-bottom: var(--bw) solid var(--line); }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs button { flex: none; min-height: 48px; border: 0; background: none; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px; font-weight: 650; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: calc(-1 * var(--bw)); }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
@@ -313,7 +313,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .mi small { display: block; color: var(--muted); font-size: 13px; }
 .mi.bad { color: var(--danger); }
 .mi.bad > svg:first-child { color: var(--danger); }
-.switch { position: relative; width: 52px; height: 32px; flex: none; }
+.switch { position: relative; display: inline-block; width: 52px; height: 32px; flex: none; }
 .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
 .switch span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
 .switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
@@ -673,3 +673,12 @@ a.btn.primary { color: var(--accent-ink); }
   .hero-tag { margin-top: 0; justify-self: end; }
   .me-cover { height: 108px; }
 }
+
+/* ayar satırı: yazı solda, anahtar sağda; dar ekranda yazı kayar, anahtar küçülmez */
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; }
+.set-row > div { min-width: 0; }
+.set-row p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.note.dikey { flex-direction: column; align-items: stretch; }
+.note.dikey form.row { flex-wrap: wrap; }
+.note.dikey form.row .input { min-width: 0; }
