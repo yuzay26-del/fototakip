@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- web/icon.svg'deki kamera simgesi; uyarlanabilir simgenin güvenli alanına ortalanmış. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="838" android:viewportHeight="838">
+    <group android:translateX="163" android:translateY="163">
+        <path android:pathData="M128,190h56l32,-48h80l32,48h56v176H128z"
+            android:strokeColor="#FFFFFF" android:strokeWidth="28" android:strokeLineJoin="round" />
+        <path android:pathData="M256,274m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0"
+            android:strokeColor="#FFFFFF" android:strokeWidth="28" />
+    </group>
+</vector>

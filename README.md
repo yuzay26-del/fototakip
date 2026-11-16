@@ -2,7 +2,7 @@
 
 Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla açılır ("önce") ve bir fotoğrafla kapanır ("sonra"). Yönetici iki fotoğrafı karşılaştırır, onaylar ya da gerekçe yazarak geri gönderir.
 
-**Durum: v0.6.1.** Tek bir Android telefonda Termux ile çalışır; ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
+**Durum: v0.7.0.** Tek bir Android telefonda çalışır: ya **APK** olarak (Termux gerekmez) ya da Termux ile. Ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
 
 ## Ne yapar
 
@@ -34,6 +34,40 @@ Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla 
 | Yedek | Sahip tek tıkla veritabanı ve fotoğrafları zip olarak indirir. |
 
 Kaydedilen fotoğraflar döndürülür, 2560 px'e küçültülür ve EXIF'siz yazılır. Dosyada konum kalmaz; konum yalnızca veritabanında tutulur.
+
+## APK olarak kurulum (Termux gerekmez)
+
+`android/` klasörü, sunucuyu uygulamanın içinde çalıştıran bir Android projesidir. Python sunucu kodu, arayüz (`web/`) ve Cloudflare tüneli (`cloudflared`) APK'nın içindedir. Kod kopyalanmaz: derleme `fototakip/` ve `web/` klasörlerini doğrudan alır.
+
+| Parça | Nasıl |
+| --- | --- |
+| Python | [Chaquopy](https://chaquo.com/chaquopy/) ile gömülü Python 3.12; Pillow dahil |
+| Sunucu | Ön plan servisi (bildirimde "FotoTakip sunucusu"); ekran kapanınca durmaz, telefon açılınca kendiliğinden başlar |
+| Arayüz | Uygulama içi tarayıcı `http://127.0.0.1:8080` adresini açar; kamera, galeri, konum, yedek indirme ve PDF yazdırma çalışır |
+| Tünel | Termux paket deposundaki Android derlemesi `cloudflared`; derlemede indirilir, SHA-256 ile doğrulanır |
+| İlk kurulum | Kurulum kodu ilk açılışta pencerede gösterilir |
+
+**Derleme (Windows, macOS, Linux):** [Android Studio](https://developer.android.com/studio) ile `android/` klasörünü aç, *Build › Generate Signed App Bundle / APK › APK*. Komut satırından:
+
+```bash
+cd android
+./gradlew assembleRelease          # Windows: gradlew.bat assembleRelease
+# çıktı: android/app/build/outputs/apk/release/app-release.apk
+```
+
+**İmza anahtarı:** `android/keystore.properties` ve `.jks` dosyası depoya girmez (`.gitignore`). Yoksa APK debug anahtarıyla imzalanır. Güncellemelerin eski sürümün üstüne kurulabilmesi için **her zaman aynı anahtar** kullanılmalı; anahtar kaybolursa uygulama silinip yeniden kurulur ve veriler gider (önce yedek al).
+
+```properties
+# android/keystore.properties
+storeFile=fototakip-release.jks
+storePassword=…
+keyAlias=fototakip
+keyPassword=…
+```
+
+**Telefonda:** APK'yı aç, "Bilinmeyen kaynaklardan yüklemeye" izin ver. İlk açılışta bildirim ve pil optimizasyonu muafiyeti istenir; ikisine de izin ver, yoksa ekran kapanınca ekip bağlantısı kopabilir.
+
+**Termux'tan geçiş:** APK kendi veri klasörünü kullanır (`/data/data/io.fototakip.app/files/fototakip-data`), Termux'taki `~/fototakip-data`'yı göremez. İkisi aynı anda 8080 portunu kullanamaz: APK'yı açmadan önce Termux'taki sunucuyu durdur. Yedekten geri yükleme ekranı henüz yok.
 
 ## Tek satırda kurulum veya güncelleme (Termux)
 
@@ -217,6 +251,8 @@ Uç noktalar, tablo erişimleri ve arayüz çağrıları koddan otomatik çıkar
 - Malzeme/parça ve sahada geçen süre takibi henüz yok.
 - Harita şimdilik sokak haritası; uydu görüntüsü yok (ücretsiz ve kullanım şartları uygun bir kaynak gerekiyor).
 - Silinen bir işin fotoğrafları ve imzası sunucudan da silinir; geri getirmenin tek yolu yedektir.
+- APK yalnızca 64-bit ARM (arm64-v8a) telefonlarda çalışır. Bazı üreticiler (Xiaomi, Huawei, Samsung) pil muafiyetine rağmen arka plan servisini kapatabilir; ayarlardan "otomatik başlatma" da açılmalı.
+- APK'daki DNS seçimi (Yönetim › Sistem) Termux'a özeldir; APK'da tünel Android'in kendi DNS'ini kullanır.
 
 ## Lisans
 

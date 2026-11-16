@@ -25,6 +25,38 @@ def lan_addresses() -> list[str]:
     return sorted(a for a in addrs if not a.startswith("127."))
 
 
+def ensure_setup_code(cfg: Config) -> str:
+    """Veritabanı boşsa ilk kurulum kodunu üretir, dosyaya yazar ve döndürür; doluysa ""."""
+    if not db.is_empty(cfg.db_path):
+        return ""
+    from .api import new_setup_code, setup_code_file
+    con = db.connect(cfg.db_path)
+    try:
+        setup_code = new_setup_code(con)
+    finally:
+        con.close()
+    fd = os.open(setup_code_file(cfg), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(setup_code + "\n")
+    return setup_code
+
+
+def autostart_tunnel(server, cfg: Config) -> str:
+    """Ayarlarda otomatik başlatma açıksa tüneli başlatır; kullanıcıya gösterilecek notu döndürür."""
+    con = db.connect(cfg.db_path)
+    try:
+        if db.setting(con, "tunnel_autostart", "0") == "1" and db.setting(con, "tunnel_mode", "off") != "off":
+            from .api import ApiError, start_tunnel
+            try:
+                start_tunnel(con, cfg, server.tunnel)
+                return "Dışarıdan erişim tüneli başlatılıyor; adres Yönetim › Sistem ekranında görünecek."
+            except ApiError as e:
+                return f"Tünel başlatılmadı: {e.message}"
+        return ""
+    finally:
+        con.close()
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="fototakip", description="FotoTakip sunucusu")
     p.add_argument("--host", default=os.environ.get("FOTOTAKIP_HOST", "0.0.0.0"))
@@ -51,30 +83,10 @@ def main(argv=None) -> int:
         print("Port kullanımdaysa başka port dene: fototakip --port 8081", file=sys.stderr)
         return 1
 
-    setup_code = ""
-    if db.is_empty(cfg.db_path):
-        from .api import new_setup_code, setup_code_file
-        con = db.connect(cfg.db_path)
-        try:
-            setup_code = new_setup_code(con)
-        finally:
-            con.close()
-        path = setup_code_file(cfg)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(setup_code + "\n")
-
-    con = db.connect(cfg.db_path)
-    try:
-        if db.setting(con, "tunnel_autostart", "0") == "1" and db.setting(con, "tunnel_mode", "off") != "off":
-            from .api import ApiError, start_tunnel
-            try:
-                start_tunnel(con, cfg, server.tunnel)
-                print("Dışarıdan erişim tüneli başlatılıyor; adres Yönetim › Sistem ekranında görünecek.")
-            except ApiError as e:
-                print(f"Tünel başlatılmadı: {e.message}")
-    finally:
-        con.close()
+    setup_code = ensure_setup_code(cfg)
+    tunnel_note = autostart_tunnel(server, cfg)
+    if tunnel_note:
+        print(tunnel_note)
 
     print(f"FotoTakip {__version__} çalışıyor")
     print(f"  Bu telefonda:   http://localhost:{cfg.port}")
@@ -85,6 +97,7 @@ def main(argv=None) -> int:
     if not images.HAVE_PIL:
         print("  Uyarı: Pillow yok; fotoğraflar küçültülmeden saklanacak. Kur: pkg install python-pillow")
     if setup_code:
+        from .api import setup_code_file
         print()
         print("  İLK KURULUM: tarayıcıda adresi aç, yönetici hesabını oluştur.")
         print(f"  Kurulum kodu:   {setup_code}")

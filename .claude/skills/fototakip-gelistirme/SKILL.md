@@ -12,6 +12,7 @@ description: FotoTakip koduna özellik eklerken, hata düzeltirken veya yeniden 
 - `fototakip/db.py` — SQLite (WAL), `SCHEMA` + `MIGRATIONS`, `db.tx(con)` ile yazma.
 - `web/app.js` — derleme adımı olmayan tek dosya istemci; `S` durum nesnesi, `render()`; eylemler `data-act` / `data-change` / `data-form` ile `acts` / `changes` / `forms` sözlüklerine bağlanır.
 - `web/styles.css` — tasarım belirteçleri ve 5 stil. Bkz. `fototakip-tasarim`.
+- `android/` — APK: `ServerService` (ön plan servisi, Python'u Chaquopy ile başlatır), `MainActivity` (WebView; kamera, konum, indirme, yazdırma köprüleri), `fototakip_android.py` (Python giriş noktası). Sunucuya Android'e özel kod eklenmez; gerekiyorsa `__main__.py`'deki ortak yardımcılar (`ensure_setup_code`, `autostart_tunnel`) kullanılır.
 
 ## Kurallar
 1. **Yalnızca Python standart kütüphanesi** (Pillow isteğe bağlı). Termux'ta derleme gerektiren paket ekleme.
@@ -26,6 +27,7 @@ python3 -m unittest discover -s tests            # Pillow'lu
 PYTHONPATH=/yok/PIL-engeli python3 -m unittest discover -s tests   # Pillow'suz da geçmeli
 python3 tools/proje-haritasi/uret.py && python3 tools/proje-haritasi/uret.py --check
 node --check web/app.js
+cd android && ./gradlew assembleRelease   # android/ ya da Python paketi değiştiyse
 ```
 Arayüz değiştiyse Playwright ile telefon (390×844), tablet (834×1112) ve masaüstü (1440×900) ekran görüntüsü al ve bak.
 
