@@ -11,7 +11,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE users (
@@ -201,6 +201,11 @@ MIGRATIONS = {
         ('sk_boya', 'Boya', 'brush', '#C026D3', 4),
         ('sk_yapi', 'Yapı', 'brick', '#B45309', 5),
         ('sk_ag', 'Ağ ve telekom', 'wifi', '#4F46E5', 6)
+    """,
+    # 5: kişisel arka plan ('' = mesleğe göre, 'none', 'pal:<palet>', 'photo:<sürüm>') ve sahibin arka plan kuralları.
+    5: """
+    ALTER TABLE users ADD COLUMN bg TEXT NOT NULL DEFAULT '';
+    INSERT OR IGNORE INTO settings(key, value) VALUES ('bg_enabled', '1'), ('bg_choice', '1'), ('bg_upload', '1')
     """,
 }
 # Tablo yeniden kurulan göçler: yabancı anahtar denetimi göç süresince kapatılır, sonra doğrulanır.

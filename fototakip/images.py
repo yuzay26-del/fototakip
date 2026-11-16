@@ -216,3 +216,60 @@ def store(data: bytes, photos_dir: str, photo_id: str) -> dict:
     with open(os.path.join(photos_dir, name), "wb") as f:
         f.write(data)
     return {"path": name, "thumb_path": name, "mime": f"image/{kind}", "width": None, "height": None, **meta}
+
+
+# ---------- kişisel arka plan ----------
+
+BG_EDGE = 1600
+
+
+def store_background(data: bytes, bg_dir: str, user_id: str) -> str:
+    """Kullanıcının arka plan fotoğrafını kaydeder, dosya adını döner.
+
+    Pillow varsa döndürülür, 1600 px'e küçültülür ve EXIF'siz JPEG olarak yazılır.
+    Pillow yoksa JPEG'in EXIF/XMP blokları (konum) silinir; PNG/WebP olduğu gibi saklanır.
+    Kullanıcının eski arka plan dosyaları silinir.
+    """
+    kind = sniff(data)
+    if kind == "heic":
+        raise ImageError("heic_unsupported", "HEIC/HEIF desteklenmiyor. JPEG, PNG veya WebP seç.")
+    if kind is None:
+        raise ImageError("unsupported_type", "Yalnızca JPEG, PNG veya WebP yüklenebilir.")
+    os.makedirs(bg_dir, exist_ok=True)
+    if HAVE_PIL:
+        try:
+            im = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+            im = im.convert("RGB")
+            im.thumbnail((BG_EDGE, BG_EDGE))
+            out = io.BytesIO()
+            im.save(out, "JPEG", quality=80, optimize=True)
+        except Exception as exc:
+            raise ImageError("bad_image", f"Fotoğraf açılamadı: {exc.__class__.__name__}") from exc
+        data, ext = out.getvalue(), "jpg"
+    else:
+        ext = {"jpeg": "jpg", "png": "png", "webp": "webp"}[kind]
+        if kind == "jpeg":
+            data = strip_jpeg_metadata(data)
+    remove_background(bg_dir, user_id)
+    name = f"{user_id}.{ext}"
+    tmp = os.path.join(bg_dir, name + ".tmp")
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, os.path.join(bg_dir, name))
+    return name
+
+
+def background_path(bg_dir: str, user_id: str) -> str | None:
+    for ext in ("jpg", "png", "webp"):
+        p = os.path.join(bg_dir, f"{user_id}.{ext}")
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def remove_background(bg_dir: str, user_id: str) -> None:
+    for ext in ("jpg", "png", "webp"):
+        try:
+            os.remove(os.path.join(bg_dir, f"{user_id}.{ext}"))
+        except FileNotFoundError:
+            pass

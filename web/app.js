@@ -89,8 +89,72 @@ const P = {
 };
 const ic = (n, c = '') => `<svg class="i ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || P.wrench}</svg>`;
 const IC = { camera: ic('camera'), target: ic('target'), plus: ic('plus') };
-const SKILL_ICONS = ['bolt', 'drop', 'snow', 'brush', 'brick', 'wifi', 'wrench', 'flame', 'sun', 'key', 'cctv', 'leaf'];
-const SKILL_COLORS = ['#D97706', '#0284C7', '#0891B2', '#C026D3', '#B45309', '#4F46E5', '#16A34A', '#DC2626', '#64748B'];
+
+/* ---------- arka plan: mesleğe göre desen ya da kişisel fotoğraf ----------
+   Desen, paletin simgelerinden çizilen 280px'lik bir SVG karosudur (veri URL'si; ağ gerektirmez). */
+const PAT_POS = [[34, 38, -12, 1.5], [150, 22, 8, 1.1], [236, 70, -6, 1.3], [92, 112, 14, 1.0], [196, 150, -16, 1.6], [26, 186, 6, 1.2], [128, 214, -4, 1.4], [238, 246, 12, 1.0], [70, 262, -18, .9]];
+const patCache = new Map();
+function patternUrl(pal, color, lead) {
+  const key = `${pal.id}|${color}|${lead || ''}`;
+  if (patCache.has(key)) return patCache.get(key);
+  const icons = lead ? [lead, ...pal.icons.filter(i => i !== lead)] : pal.icons;
+  const g = PAT_POS.map(([x, y, r, k], n) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(${k}) translate(-12 -12)">${P[icons[n % icons.length]] || P.wrench}</g>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="280" viewBox="0 0 280 280"><g fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${g}</g></svg>`;
+  const url = `url('data:image/svg+xml,${encodeURIComponent(svg).replace(/'/g, '%27')}')`;  // tek tırnak: style="…" içinde kullanılır
+  patCache.set(key, url);
+  return url;
+}
+/* Mesleğe göre arka plan: kişinin ilk yeteneğinin simgesi hangi paletteyse o; renk yeteneğin rengi. */
+function professionBg(u = S.me) {
+  for (const sid of u.skills || []) {
+    const k = skill(sid), p = k && ICON_PAL[k.icon];
+    if (p) return { kind: 'pal', pal: p, color: k.color, lead: k.icon, label: k.name, auto: true };
+  }
+  const p = palById(u.role === 'field' ? 'mekanik' : 'ofis') || PALS[0];
+  return { kind: 'pal', pal: p, color: p.color, label: ROLE[u.role], auto: true };
+}
+/* Sahibin kuralları + kişinin seçimi → etkin arka plan. */
+function bgOf(choice = S.me.bg || '') {
+  const st = S.settings;
+  if (st.bg_enabled === false) return { kind: 'none' };
+  if (st.bg_choice === false) choice = '';
+  if (choice === 'none') return { kind: 'none' };
+  if (choice.startsWith('photo:') && st.bg_upload !== false) return { kind: 'photo', url: `/files/bg/${S.me.id}?v=${choice.slice(6)}` };
+  const p = choice.startsWith('pal:') && palById(choice.slice(4));
+  if (p) return { kind: 'pal', pal: p, color: p.color, label: p.name };
+  return professionBg();
+}
+const bgStyle = b => b.kind === 'pal' ? `--bg-pat:${patternUrl(b.pal, b.color, b.lead)};--bg-tint:${b.color}` : b.kind === 'photo' ? `--bg-photo:url('${b.url}')` : '';
+let bgKey = '';
+function applyBackdrop() {
+  const el = document.getElementById('backdrop');
+  if (!el || !S.me) return;
+  const b = bgOf(), key = JSON.stringify([b.kind, b.pal?.id, b.color, b.lead, b.url]);
+  if (key === bgKey) return;
+  bgKey = key;
+  el.className = `backdrop bgfill ${b.kind}`;
+  el.setAttribute('style', bgStyle(b));
+  document.documentElement.style.setProperty('--bg-tint', b.color || 'var(--accent)');
+}
+/* Simge paletleri: web/palettes.json (sunucu da aynı dosyayla doğrular). Yüklenemezse çekirdek simgelerle devam edilir. */
+let PALS = [{ id: 'genel', name: 'Genel', color: '#64748B', icons: ['bolt', 'drop', 'snow', 'brush', 'brick', 'wifi', 'wrench', 'flame', 'sun', 'key', 'cctv', 'leaf'] }];
+let SKILL_ICONS = PALS[0].icons.slice();
+const ICON_PAL = {};
+const palById = id => PALS.find(p => p.id === id);
+async function loadPalettes() {
+  try {
+    const r = await fetch('/palettes.json', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const d = await r.json();
+    PALS = d.palettes.map(p => {
+      for (const [k, v] of Object.entries(p.icons)) if (v && !P[k]) P[k] = v;
+      return { id: p.id, name: p.name, color: p.color, icons: Object.keys(p.icons) };
+    });
+    SKILL_ICONS = PALS.flatMap(p => p.icons);
+  } catch {}
+  for (const p of PALS) for (const i of p.icons) ICON_PAL[i] = p;
+}
+const SKILL_COLORS = ['#D97706', '#CA8A04', '#DC2626', '#E11D48', '#C026D3', '#7C3AED', '#4F46E5', '#0284C7', '#0891B2', '#0EA5E9', '#16A34A', '#B45309', '#475569', '#334155'];
 const ROLE = { owner: 'Sahip', manager: 'Yönetici', lead: 'Ekip lideri', field: 'Teknisyen' };
 const ROLE_IC = { owner: 'crown', manager: 'shield', lead: 'flag', field: 'wrench' };
 const STYLES = [
@@ -414,8 +478,8 @@ function viewBoard() {
   if (!S.projects.length && canCust()) return head + empty('building', 'Henüz müşteri yok', `<button class="btn primary" data-act="admNew" data-kind="customer">${ic('plus', 's')}Müşteri ekle</button>`);
   if (!S.tasks.length) return head + empty('board', canDispatch() ? 'Henüz iş yok' : 'Sana atanmış iş yok',
     canDispatch() ? `<button class="btn primary" data-act="newTask">${ic('plus', 's')}İş aç</button>` : '');
-  if (S.boardMode === 'list') return head + viewList(ts);
-  if (S.boardMode === 'calendar') return head + viewCalendar(ts);
+  if (S.boardMode === 'list') return hero() + head + viewList(ts);
+  if (S.boardMode === 'calendar') return hero() + head + viewCalendar(ts);
   const cols = STATUSES.map(s => {
     const items = ts.filter(t => t.status === s.id);
     return `<section class="col ${S.mcol === s.id ? 'active' : ''}" data-status="${s.id}" aria-label="${s.name}">
@@ -423,9 +487,24 @@ function viewBoard() {
       ${items.length ? items.map(card).join('') : `<div class="empty"><span class="st ${s.id}">${ST_ICON[s.id]}</span></div>`}
     </section>`;
   }).join('');
-  return head + `
+  return hero() + head + `
     <div class="seg coltabs" role="group" aria-label="Durum">${STATUSES.map(s => `<button data-act="mcol" data-col="${s.id}" aria-pressed="${S.mcol === s.id}"><span class="st ${s.id}">${ST_ICON[s.id]}</span>${s.short}<b class="num">${ts.filter(t => t.status === s.id).length}</b></button>`).join('')}</div>
     <div class="board">${cols}</div>`;
+}
+/* Karşılama bandı: selam, meslek, bugünün üç sayısı. Sayılar kişinin gördüğü işlerden. */
+function hero() {
+  const h = new Date().getHours();
+  const hi = h < 6 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar';
+  const prof = professionBg(), mineOnly = S.tasks.filter(t => canDispatch() || t.assignee_id === S.me.id);
+  const today = mineOnly.filter(t => t.status !== 'done' && t.due === todayStr()).length;
+  const late = mineOnly.filter(isLate).length;
+  const rev = mineOnly.filter(t => t.status === 'review').length;
+  const k = (n, l, i, c, col) => `<button class="hk ${c}" data-act="heroCol" data-col="${col}" title="${l}"><span>${ic(i, 'xs')}<b class="num">${n}</b></span><small>${l}</small></button>`;
+  return `<section class="hero" style="--bg-tint:${prof.color}">
+    <span class="hero-art" aria-hidden="true">${ic(prof.lead || prof.pal.icons[0], 'l')}</span>
+    <div class="hero-t"><small>${hi}</small><h2>${esc(S.me.name.split(' ')[0])}</h2><span class="hero-tag">${ic(prof.lead || prof.pal.icons[0], 'xs')}${esc(prof.label)}</span></div>
+    <div class="hero-k">${k(today, 'Bugün', 'calendar', today ? 'warn' : '', 'progress')}${k(late, 'Geciken', 'alert', late ? 'bad' : '', 'list')}${k(rev, 'Onayda', 'clock', '', 'review')}</div>
+  </section>`;
 }
 function canAdvance(t) {
   if (t.status === 'done') return false;
@@ -782,8 +861,11 @@ function viewReport() {
 function viewProfile() {
   const secure = window.isSecureContext;
   const sw = s => `<button class="sw" data-act="theme" data-theme="${s.id}" aria-pressed="${S.theme === s.id}" style="--b:${s.b};--s:${s.s};--k:${s.k};--a:${s.a}"><span class="ph"><i></i><i></i><i></i><i class="a"></i></span>${s.name}</button>`;
-  return `<section class="panel me-head"><span class="avatar big">${esc(S.me.short)}</span><div class="grow" style="min-width:0"><h2>${esc(S.me.name)}</h2><div class="row muted">${roleBadge(S.me.role)}<span>@${esc(S.me.username)}</span></div></div></section>
+  const cur = bgOf();
+  return `<section class="panel me-head"><div class="me-cover bgfill ${cur.kind}" style="${bgStyle(cur)}" aria-hidden="true"></div>
+    <div class="me-id"><span class="avatar big">${esc(S.me.short)}</span><div class="grow" style="min-width:0"><h2>${esc(S.me.name)}</h2><div class="row muted">${roleBadge(S.me.role)}<span>@${esc(S.me.username)}</span></div></div></div></section>
   <section class="panel"><div class="sec-h"><h4>${ic('palette', 's')}Görünüm</h4></div><div class="styles" role="group" aria-label="Stil">${STYLES.map(sw).join('')}</div></section>
+  ${bgPicker()}
   <section class="panel menu">
     ${canDispatch() ? `<button class="mi" data-act="go" data-view="admin">${ic('shield')}<span><b>Yönetim</b></span>${ic('chevron', 's')}</button>` : ''}
     <button class="mi" data-act="go" data-view="report">${ic('report')}<span><b>Teslim raporu</b></span>${ic('chevron', 's')}</button>
@@ -793,6 +875,27 @@ function viewProfile() {
     <div class="mi">${ic(secure ? 'lock' : 'alert')}<span><b>Bağlantı</b><small>${esc(location.host)}</small></span><span class="pill ${secure ? 'ok' : 'bad'}">${secure ? 'Güvenli' : 'HTTP'}</span></div>
     <button class="mi bad" data-act="logout">${ic('logout')}<span><b>Çıkış yap</b></span></button>
   </section>`;
+}
+
+/* Arka plan seçici: mesleğim, düz, paletler, kendi fotoğrafım. Sahibin kuralları kilitleyebilir. */
+function bgPicker() {
+  const st = S.settings, mine = S.me.bg || '';
+  const head = `<div class="sec-h"><h4>${ic('image', 's')}Arka plan</h4></div>`;
+  if (st.bg_enabled === false) return `<section class="panel">${head}<div class="note">${ic('lock', 's')}<span>Arka planlar sahip tarafından kapatıldı</span></div></section>`;
+  if (st.bg_choice === false) { const b = professionBg(); return `<section class="panel">${head}<div class="note">${ic('lock', 's')}<span>Arka planı mesleğin belirliyor: <b>${esc(b.label)}</b></span></div></section>`; }
+  const sel = v => mine === v || (v === 'photo' && mine.startsWith('photo:'));
+  const tile = (v, b, label, extra = '') => `<button class="bgt bgfill ${b.kind}" data-act="bgPick" data-bg="${v}" aria-pressed="${sel(v)}" style="${bgStyle(b)}"><span class="bgl">${extra}${esc(label)}</span></button>`;
+  const prof = professionBg();
+  const photo = mine.startsWith('photo:') && st.bg_upload !== false;
+  return `<section class="panel">${head}
+    <div class="bgs" role="group" aria-label="Arka plan">
+      ${tile('', prof, 'Mesleğim', ic('sparkle', 'xs'))}
+      ${tile('none', { kind: 'none' }, 'Düz')}
+      ${st.bg_upload !== false ? (photo
+        ? `<div class="bgt-wrap">${tile('photo', bgOf(mine), 'Fotoğrafım', ic('image', 'xs'))}<button class="ib bgx" data-act="bgDel" aria-label="Fotoğrafı kaldır" title="Kaldır">${ic('trash', 's')}</button></div>`
+        : `<label class="bgt add">${ic('upload')}<span class="bgl">Fotoğraf yükle</span><input class="vh" type="file" accept="image/jpeg,image/png,image/webp" data-change="bgFile"></label>`) : ''}
+      ${PALS.map(p => tile('pal:' + p.id, { kind: 'pal', pal: p, color: p.color }, p.name)).join('')}
+    </div></section>`;
 }
 
 /* ---------- yönetim paneli ---------- */
@@ -866,7 +969,18 @@ function admSystem() {
     <div class="mi">${ic('sparkle')}<span><b>Otomatik onaya taşı</b><small>Önce ve sonra fotoğrafı, kanıtlar tamamsa</small></span><label class="switch"><input type="checkbox" id="sw-auto" data-change="autoRule" ${S.settings.auto_rule ? 'checked' : ''} aria-label="Otomatik onaya taşı"><span></span></label></div>
     ${can('owner') ? `<a class="mi" href="/api/backup">${ic('download')}<span><b>Yedek indir</b><small>Veritabanı ve fotoğraflar</small></span>${ic('chevron', 's')}</a>` : ''}
   </section>
+  ${can('owner') ? bgRules() : ''}
   ${can('owner') ? viewIntegrations() : ''}`;
+}
+
+function bgRules() {
+  const st = S.settings, on = k => st[k] !== false;
+  const sw = (k, i, t, d, dis) => `<div class="mi">${ic(i)}<span><b>${t}</b><small>${d}</small></span><label class="switch"><input type="checkbox" data-change="bgRule" data-key="${k}" ${on(k) ? 'checked' : ''} ${dis ? 'disabled' : ''} aria-label="${t}"><span></span></label></div>`;
+  return `<section class="panel menu"><div class="sec-h"><h4>${ic('image', 's')}Arka plan kuralları</h4></div>
+    ${sw('bg_enabled', 'palette', 'Meslek arka planları', 'Herkese yeteneğine göre desen', false)}
+    ${sw('bg_choice', 'user', 'Kişiler değiştirebilir', 'Kapalıysa herkes mesleğinin desenini görür', !on('bg_enabled'))}
+    ${sw('bg_upload', 'upload', 'Kendi fotoğrafı', 'Kişi kendi resmini arka plan yapabilir', !on('bg_enabled') || !on('bg_choice'))}
+  </section>`;
 }
 
 /* ---------- formlar (alttan açılan pencere) ---------- */
@@ -930,7 +1044,7 @@ function modalSkill(m) {
   return mHead(m.id ? skillChip(k.id) : ic('wrench'), m.id ? esc(k.name) : 'Yeni yetenek')
     + `<form data-form="skill" data-id="${k.id || ''}">
       ${fld('ms-name', 'Ad', 'pen', 'required maxlength="40"', k.name || '')}
-      <div class="field"><span>Simge</span><div class="icon-pick" role="radiogroup" aria-label="Simge">${SKILL_ICONS.map(i => `<label><input type="radio" name="ms-icon" value="${i}" ${k.icon === i ? 'checked' : ''} aria-label="${i}"><span>${ic(i)}</span></label>`).join('')}</div></div>
+      <div class="field"><span>Simge</span><div class="icon-pals" role="radiogroup" aria-label="Simge">${PALS.map(p => `<div class="ipal"><b style="--c:${p.color}">${esc(p.name)}</b><div class="icon-pick">${p.icons.map(i => `<label title="${esc(p.name)}"><input type="radio" name="ms-icon" value="${i}" data-change="skIcon" data-color="${p.color}" ${k.icon === i ? 'checked' : ''} aria-label="${esc(p.name)}: ${i}"><span>${ic(i)}</span></label>`).join('')}</div></div>`).join('')}</div></div>
       <div class="field"><span>Renk</span><div class="color-pick" role="radiogroup" aria-label="Renk">${SKILL_COLORS.map(c => `<label><input type="radio" name="ms-color" value="${c}" ${k.color === c ? 'checked' : ''} aria-label="${c}"><span style="--c:${c}"></span></label>`).join('')}</div></div>
       <div class="actions">${m.id ? `<button type="button" class="btn bad icon" data-act="skillDelete" data-id="${k.id}" aria-label="Sil" title="Sil">${ic('trash', 's')}</button>` : ''}<button class="btn primary" type="submit">${ic('check', 's')}Kaydet</button></div>
     </form>`;
@@ -1185,7 +1299,7 @@ function measureChrome() {
 function render() {
   if (!S.me) return;
   const kept = keepInputs();
-  renderHeader(); renderDock(); measureChrome(); renderMain();
+  applyBackdrop(); renderHeader(); renderDock(); measureChrome(); renderMain();
   if (!(S.open && sigDirty && document.getElementById('sig-pad'))) renderSheet();
   restoreInputs(kept);
 }
@@ -1402,6 +1516,9 @@ const acts = {
   cal: a => { const d = +a.dataset.d; if (d === 0) { const n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth() }; } else { const n = new Date(S.cal.y, S.cal.m + d, 1); S.cal = { y: n.getFullYear(), m: n.getMonth() }; } render(); },
   theme: a => { S.theme = a.dataset.theme; store.set('ft-style', S.theme); applyTheme(); render(); api('PATCH', '/api/me', { theme: S.theme }).catch(() => {}); },
   print: () => window.print(),
+  heroCol: a => { const c = a.dataset.col; if (c === 'list') S.boardMode = 'list'; else { S.boardMode = 'kanban'; S.mcol = c; } render(); },
+  bgPick: a => { const bg = a.dataset.bg; if (bg === 'photo') return; S.me.bg = bg; bgKey = ''; render(); run(() => api('PATCH', '/api/me', { bg }), 'Arka plan değişti'); },
+  bgDel: () => run(() => api('DELETE', '/api/me/background'), 'Fotoğraf kaldırıldı'),
 };
 async function saveInteg(body, msg) {
   try { S.integ = await api('PATCH', '/api/admin/integrations', body); S.integMode = null; toast(msg); if (body.ai) reload().catch(() => {}); }
@@ -1427,7 +1544,10 @@ const changes = {
   check: el => run(() => api('PATCH', `/api/checklist/${el.dataset.cid}`, { done: el.checked }), r => r?.automation?.moved ? 'Tüm kanıtlar tamam · iş <b>Onay bekliyor</b>’a taşındı' : null),
   forceOffline: el => { S.forceOffline = el.checked; store.set('ft-force-offline', el.checked ? '1' : '0'); toast(el.checked ? 'Çevrimdışı test modu açık' : 'Çevrimdışı test modu kapalı'); render(); if (!el.checked) flushQueue(); },
   autoRule: el => run(() => api('PATCH', '/api/settings', { auto_rule: el.checked }), el.checked ? 'Otomasyon açık' : 'Otomasyon kapalı'),
-  repProj: el => { S.repProj = el.value; render(); }
+  repProj: el => { S.repProj = el.value; render(); },
+  bgFile: el => { const f = el.files[0]; el.value = ''; if (f) run(() => api('POST', '/api/me/background', f), 'Arka plan fotoğrafı yüklendi'); },
+  bgRule: el => run(() => api('PATCH', '/api/settings', { [el.dataset.key]: el.checked }), el.checked ? 'Açıldı' : 'Kapatıldı'),
+  skIcon: el => { const c = el.closest('form')?.querySelector(`input[name="ms-color"][value="${el.dataset.color}"]`); if (c) c.checked = true; }
 };
 const forms = {
   resetPw: async f => { const pw = document.getElementById('rp-' + f.dataset.uid).value; try { await api('POST', `/api/admin/users/${f.dataset.uid}/password`, { password: pw }); toast('Parola değiştirildi'); } catch (e) { fail(e); } loadIntegrations(); },
@@ -1543,6 +1663,7 @@ async function boot() {
   applyTheme();
   if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
   try { const h = await api('GET', '/api/health'); S.needsSetup = !!h.needs_setup; } catch {}
+  await loadPalettes();
   try {
     await reload();
     $('#app').hidden = false; $('#login').hidden = true;
