@@ -1,9 +1,9 @@
 /* FotoTakip service worker: uygulama kabuğunu ve son verileri önbellekte tutar.
    Yalnızca güvenli bağlamda (https veya localhost) çalışır. */
-const VERSION = 'ft-0.5.1';
+const VERSION = 'ft-0.6.0';
 const TILES = 'ft-tiles';
 const TILE_LIMIT = 800; // yaklaşık 15-20 MB
-const SHELL = ['/', '/app.js', '/styles.css', '/manifest.webmanifest', '/icon.svg', '/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css'];
+const SHELL = ['/', '/app.js', '/styles.css', '/manifest.webmanifest', '/icon.svg', '/palettes.json', '/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

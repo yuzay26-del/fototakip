@@ -54,7 +54,19 @@ def need_owner(req):
 
 
 THEMES = ("", "auto", "sade", "gece", "saha", "okyanus", "orman")
-SKILL_ICONS = ("bolt", "drop", "snow", "brush", "brick", "wifi", "wrench", "flame", "sun", "key", "cctv", "leaf")
+PALETTES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "palettes.json")
+
+
+def load_palettes() -> list[dict]:
+    """Simge paletleri tek kaynaktan (web/palettes.json) okunur; istemci de aynı dosyayı kullanır."""
+    with open(PALETTES_PATH, encoding="utf-8") as f:
+        return json.load(f)["palettes"]
+
+
+PALETTES = load_palettes()
+PALETTE_IDS = frozenset(p["id"] for p in PALETTES)
+SKILL_ICONS = tuple(i for p in PALETTES for i in p["icons"])
+BG_SETTINGS = ("bg_enabled", "bg_choice", "bg_upload")
 HEX_RE = re.compile(r"#[0-9A-Fa-f]{6}")
 
 
@@ -312,11 +324,15 @@ def bootstrap(req):
             photos[r["photo_id"]]["annotations"].append({"id": r["id"], "x": r["x"], "y": r["y"], "text": r["text"], "by": r["by_id"]})
         for r in con.execute(f"SELECT * FROM ai_reviews WHERE photo_id IN ({marks})", pids):
             photos[r["photo_id"]]["ai"] = {**json.loads(r["result"]), "by": r["by_id"], "at": r["created_at"]}
-    me = {**user, "perms": {"admin": perms.is_admin(user), "owner": perms.is_owner(user), "lead": user["role"] == "lead",
+    my_skills = [r[0] for r in con.execute(
+        "SELECT us.skill_id FROM user_skills us JOIN skills s ON s.id = us.skill_id WHERE us.user_id = ? ORDER BY s.sort, s.name",
+        (user["id"],))]
+    me = {**user, "skills": my_skills, "perms": {"admin": perms.is_admin(user), "owner": perms.is_owner(user), "lead": user["role"] == "lead",
                             "customers": perms.can_manage_customers(user), "roles": list(perms.creatable_roles(user))}}
     return {"me": me, "users": users, "projects": projects, "skills": skills, "tasks": list(tasks.values()), "photos": photos,
             "settings": {"auto_rule": db.setting(con, "auto_rule", "1") == "1",
-                         "ai_enabled": db.setting(con, "ai_enabled", "0") == "1"},
+                         "ai_enabled": db.setting(con, "ai_enabled", "0") == "1",
+                         **{k: db.setting(con, k, "1") == "1" for k in BG_SETTINGS}},
             "server_time": db.now(), "version": __version__}
 
 
@@ -471,11 +487,68 @@ def update_me(req):
         sets["short"] = auth.initials(sets["name"])
     if "phone" in body:
         sets["phone"] = text_field(body, "phone", False, 40)
+    drop_photo = False
+    if "bg" in body:
+        bg = body["bg"]
+        if not isinstance(bg, str) or not (bg in ("", "none") or (bg.startswith("pal:") and bg[4:] in PALETTE_IDS)):
+            raise ApiError(400, "bad_bg", "Bilinmeyen arka plan.")
+        if bg and not bg_allowed(con, "bg_choice"):
+            raise ApiError(403, "bg_locked", "Arka planı sahip belirliyor; değiştirilemez.")
+        sets["bg"], drop_photo = bg, True
+    if drop_photo:
+        images.remove_background(bg_dir(req.cfg), req.user["id"])
     if sets:
         with db.tx(con):
             cols = ", ".join(f"{k} = ?" for k in sets)
             con.execute(f"UPDATE users SET {cols} WHERE id = ?", (*sets.values(), req.user["id"]))
     return {"ok": True}
+
+
+# ---------- kişisel arka plan ----------
+
+def bg_dir(cfg) -> str:
+    return os.path.join(cfg.data_dir, "backgrounds")
+
+
+def bg_allowed(con, *keys: str) -> bool:
+    """Sahibin arka plan kuralları: bg_enabled her zaman, ardından istenen anahtarlar açık olmalı."""
+    return all(db.setting(con, k, "1") == "1" for k in ("bg_enabled", *keys))
+
+
+@route("POST", "/api/me/background")
+def upload_background(req):
+    """Gövde = ham fotoğraf baytları. Yalnızca kendi arka planı; sahip izin vermediyse 403."""
+    if not bg_allowed(req.con, "bg_choice", "bg_upload"):
+        raise ApiError(403, "bg_locked", "Kendi fotoğrafını arka plan yapmaya sahip izin vermiyor.")
+    data = req.body(limit=req.cfg.max_upload_mb * 1024 * 1024)
+    if not data:
+        raise ApiError(400, "empty_body", "Fotoğraf verisi boş.")
+    try:
+        images.store_background(data, bg_dir(req.cfg), req.user["id"])
+    except images.ImageError as e:
+        raise ApiError(415, e.code, e.message)
+    bg = "photo:" + db.new_id()[:8]
+    with db.tx(req.con):
+        req.con.execute("UPDATE users SET bg = ? WHERE id = ?", (bg, req.user["id"]))
+    return {"bg": bg}
+
+
+@route("DELETE", "/api/me/background")
+def delete_background(req):
+    images.remove_background(bg_dir(req.cfg), req.user["id"])
+    with db.tx(req.con):
+        req.con.execute("UPDATE users SET bg = '' WHERE id = ? AND bg LIKE 'photo:%'", (req.user["id"],))
+    return {"ok": True}
+
+
+@route("GET", r"/files/bg/(?P<uid>\w+)")
+def background_file(req):
+    """Kişisel arka plan yalnızca sahibine görünür; başkasına 404."""
+    path = images.background_path(bg_dir(req.cfg), req.user["id"]) if req.match["uid"] == req.user["id"] else None
+    if not path:
+        raise ApiError(404, "not_found", "Arka plan bulunamadı.")
+    mime = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[path.rsplit(".", 1)[1]]
+    return req.file(path, mime, immutable=True)
 
 
 # ---------- yetenekler ----------
@@ -666,9 +739,14 @@ def geocode(req):
 def update_settings(req):
     need_manager(req)
     body = req.json()
+    if any(k in body for k in BG_SETTINGS):
+        need_owner(req)  # arka plan kurallarını yalnızca sahip belirler
     with db.tx(req.con):
         if "auto_rule" in body:
             db.set_setting(req.con, "auto_rule", "1" if body["auto_rule"] else "0")
+        for k in BG_SETTINGS:
+            if k in body:
+                db.set_setting(req.con, k, "1" if body[k] else "0")
     req.publish({"type": "settings"})
     return {"ok": True}
 
@@ -1166,7 +1244,7 @@ def backup(req):
         zpath = os.path.join(tmp, f"fototakip-yedek-{stamp}.zip")
         with zipfile.ZipFile(zpath, "w", zipfile.ZIP_STORED) as z:
             z.write(snap, "fototakip.db")
-            for sub in ("photos", "signatures"):
+            for sub in ("photos", "signatures", "backgrounds"):
                 base = os.path.join(req.cfg.data_dir, sub)
                 if os.path.isdir(base):
                     for name in os.listdir(base):

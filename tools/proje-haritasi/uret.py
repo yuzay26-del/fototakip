@@ -200,7 +200,7 @@ def build(R, raw):
            'reject': 'ui.sheet', 'sigSave': 'ui.sheet', 'delTask': 'ui.sheet', 'newTask': 'ui.board', 'pickSaveMove': 'ui.map', 'applySug': 'ui.map',
            'dismissSug': 'ui.map', 'check': 'ui.sheet', 'autoRule': 'ui.admin', 'mapCustomer': 'ui.map', 'password': 'ui.profile', 'user': 'ui.admin',
            'aiRun': 'ui.sheet', 'loadIntegrations': 'ui.admin', 'tunStart': 'ui.admin', 'tunStop': 'ui.admin',
-           'saveInteg': 'ui.admin', 'resetPw': 'ui.admin', 'theme': 'ui.profile', 'customer': 'ui.admin', 'custArchive': 'ui.admin',
+           'saveInteg': 'ui.admin', 'resetPw': 'ui.admin', 'theme': 'ui.profile', 'bgPick': 'ui.profile', 'bgDel': 'ui.profile', 'bgFile': 'ui.profile', 'bgRule': 'ui.admin', 'customer': 'ui.admin', 'custArchive': 'ui.admin',
            'custDelete': 'ui.admin', 'custHere': 'ui.admin', 'skill': 'ui.admin', 'skillDelete': 'ui.admin', 'muRevoke': 'ui.admin'}
     seen = set()
     unmapped = []

@@ -292,8 +292,12 @@ textarea.input { min-height: 90px; resize: vertical; }
 .sug small { color: var(--muted); font-weight: 600; }
 
 /* profil ve stil seçici */
-.me-head { display: flex; align-items: center; gap: 14px; }
+.me-head { padding: 0; overflow: hidden; }
 .me-head h2 { font-size: 22px; }
+.me-cover { height: 132px; border-bottom: var(--bw) solid var(--line); }
+.me-id { display: flex; align-items: flex-end; gap: 14px; padding: 0 16px 16px; margin-top: -30px; position: relative; }
+.me-id .avatar.big { width: 72px; height: 72px; font-size: 24px; box-shadow: 0 0 0 4px var(--surface), var(--shadow); }
+.me-id .grow { padding-bottom: 2px; }
 .styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
 .sw { border: var(--bw) solid var(--line); background: var(--surface); border-radius: var(--r-md); padding: 8px; display: grid; gap: 6px; justify-items: center; font-size: 13px; font-weight: 650; }
 .sw[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
@@ -593,3 +597,79 @@ body.mapmode main { padding: 0; }
 :root[data-style="gece"] .card::before { box-shadow: 0 0 12px var(--c); }
 .btn, a.mi, a.ib { text-decoration: none; color: inherit; }
 a.btn.primary { color: var(--accent-ink); }
+
+/* ---------- arka plan ve karşılama bandı ----------
+   .bgfill: meslek deseni (pal), kişisel fotoğraf (photo) ya da düz (none). #backdrop sayfanın arkasında sabit durur;
+   kartlar ve paneller opak kalır, desen yalnızca boşluklarda görünür. Saha stilinde güneş altı okunurluk için kapalıdır. */
+.bgfill { background-color: var(--bg); position: relative; overflow: hidden; }
+.bgfill.pal { background-image:
+    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--bg-tint) 24%, transparent), transparent 62%),
+    radial-gradient(90% 70% at 0% 100%, color-mix(in srgb, var(--bg-tint) 14%, transparent), transparent 70%); }
+.bgfill.pal::before { content: ""; position: absolute; inset: 0; background: var(--bg-pat) 0 0 / 280px 280px repeat; opacity: .22; }
+.bgfill.photo { background-image: var(--bg-photo); background-size: cover; background-position: center; }
+.backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.backdrop.pal::before { opacity: .17; -webkit-mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.55) 45%, rgba(0,0,0,.25) 100%); mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.55) 45%, rgba(0,0,0,.25) 100%); }
+.backdrop.photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 62%, transparent), color-mix(in srgb, var(--bg) 86%, transparent) 40%, color-mix(in srgb, var(--bg) 92%, transparent)); }
+:root[data-style="gece"] .bgfill.pal::before { opacity: .3; }
+@media (prefers-color-scheme: dark) { :root:not([data-style]) .bgfill.pal::before { opacity: .3; } }
+:root[data-style="saha"] .backdrop { display: none; }
+
+.hero { --bg-tint: var(--accent); position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 16px;
+  padding: 14px 16px; border-radius: var(--r-lg); border: var(--bw) solid color-mix(in srgb, var(--bg-tint) 22%, var(--line));
+  background: linear-gradient(120deg, color-mix(in srgb, var(--bg-tint) 16%, var(--surface)) 0%, var(--surface) 70%); box-shadow: var(--shadow); }
+.hero-art { position: absolute; right: -14px; bottom: -26px; color: var(--bg-tint); opacity: .14; pointer-events: none; }
+.hero-art svg.i { width: 132px; height: 132px; stroke-width: 1.4; }
+.hero-t { display: grid; gap: 2px; min-width: 0; position: relative; }
+.hero-t small { color: var(--muted); font-weight: 600; font-size: 13px; }
+.hero-t h2 { font-size: 22px; font-weight: 760; letter-spacing: -.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-h); }
+.hero-tag { justify-self: start; display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12.5px; font-weight: 650;
+  color: color-mix(in srgb, var(--bg-tint) 80%, var(--ink)); background: color-mix(in srgb, var(--bg-tint) 15%, transparent); }
+.hero-k { display: flex; gap: 8px; position: relative; }
+.hk { min-width: 64px; min-height: 58px; display: grid; justify-items: center; align-content: center; gap: 2px; padding: 6px 10px; border-radius: var(--r-md);
+  border: var(--bw) solid var(--line); background: color-mix(in srgb, var(--surface) 82%, transparent); color: var(--ink); backdrop-filter: blur(6px); }
+.hk span { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.hk b { font-size: 20px; font-weight: 760; color: var(--ink); }
+.hk small { font-size: 11.5px; font-weight: 650; color: var(--muted); }
+.hk.warn b, .hk.warn span { color: var(--s-progress); }
+.hk.bad b, .hk.bad span { color: var(--danger); }
+:root[data-style="saha"] .hero { background: var(--surface); border-color: #000; }
+:root[data-style="saha"] .hero-art { display: none; }
+
+/* arka plan seçici */
+.bgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 8px; }
+.bgt { position: relative; height: 84px; width: 100%; border-radius: var(--r-md); border: var(--bw) solid var(--line); padding: 0; display: flex; align-items: flex-end; color: var(--ink); text-align: left; }
+.bgt.pal::before { opacity: .5; background-size: 150px 150px; }
+.me-cover.pal::before { opacity: .4; }
+.bgt.photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.35)); }
+.bgt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.bgl { position: relative; z-index: 1; display: flex; align-items: center; gap: 4px; width: 100%; margin: 6px; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 650; line-height: 1.2;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(4px); }
+.bgt.add { cursor: pointer; flex-direction: column; justify-content: center; align-items: center; gap: 2px; border-style: dashed; background: var(--surface-2); color: var(--muted); }
+.bgt.add .bgl { background: none; justify-content: center; margin: 0; }
+.bgt.add:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.bgt-wrap { position: relative; }
+.bgx { position: absolute; top: 2px; right: 2px; z-index: 2; background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--danger); }
+
+/* yetenek simgesi: paletlere bölünmüş seçici */
+.icon-pals { display: grid; gap: 12px; max-height: min(46dvh, 380px); overflow-y: auto; padding: 2px 4px 2px 2px; border: var(--bw) solid var(--line); border-radius: var(--r-md); padding: 10px; overscroll-behavior: contain; }
+.ipal { display: grid; gap: 6px; }
+.ipal > b { --c: var(--muted); position: sticky; top: -10px; z-index: 1; padding: 4px 0; font-size: 12.5px; font-weight: 700; color: var(--c); background: var(--surface); display: flex; align-items: center; gap: 6px; }
+.ipal > b::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.icon-pals .icon-pick { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
+
+/* modern dokunuşlar: üzerine gelince kalkan kart, yumuşak geçişler (dokunmatikte yok) */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow), 0 10px 24px color-mix(in srgb, var(--ink) 9%, transparent); }
+  .ucard, .bgt, .sw { transition: transform .15s ease, box-shadow .15s ease; }
+  .ucard:hover, .bgt:hover, .sw:hover { transform: translateY(-1px); }
+}
+@media (max-width: 767px) {
+  .hero { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; }
+  .hero-k { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hk { min-height: 50px; grid-auto-flow: column; justify-content: center; align-items: center; gap: 6px; }
+  .hero-t { grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 8px; }
+  .hero-t small { grid-column: 1 / -1; }
+  .hero-t h2 { font-size: 20px; }
+  .hero-tag { margin-top: 0; justify-self: end; }
+  .me-cover { height: 108px; }
+}
