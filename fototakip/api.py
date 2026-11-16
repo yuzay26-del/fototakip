@@ -15,7 +15,7 @@ import time
 import zipfile
 from datetime import date, datetime, timedelta
 
-from . import __version__, ai_review, auth, db, geo, images, perms, secrets, tunnel
+from . import __version__, ai_review, auth, db, geo, images, perms, secrets, tunnel, web_dir
 
 STATUSES = ("open", "progress", "review", "done")
 STATUS_NAMES = {"open": "Açık", "progress": "Devam ediyor", "review": "Onay bekliyor", "done": "Tamamlandı"}
@@ -54,7 +54,7 @@ def need_owner(req):
 
 
 THEMES = ("", "auto", "sade", "gece", "saha", "okyanus", "orman")
-PALETTES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "palettes.json")
+PALETTES_PATH = os.path.join(web_dir(), "palettes.json")
 
 
 def load_palettes() -> list[dict]:

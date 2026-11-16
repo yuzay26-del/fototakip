@@ -10,14 +10,12 @@ import os
 import tempfile
 import threading
 
-from fototakip import __version__
-from fototakip.__main__ import autostart_tunnel, ensure_setup_code, lan_addresses
-from fototakip.api import setup_code_file
-from fototakip.server import Config, make_server
+# fototakip paketi burada içe aktarılmaz: api modülü yüklenirken web/palettes.json'u okur ve
+# APK'da Python dosyalarının yanında web/ yoktur. Önce start() FOTOTAKIP_WEB'i ayarlar.
 
 _lock = threading.Lock()
 _server = None
-_cfg: Config | None = None
+_cfg = None
 
 
 def start(files_dir: str, cache_dir: str, web_dir: str, cloudflared: str, port: int) -> str:
@@ -26,6 +24,7 @@ def start(files_dir: str, cache_dir: str, web_dir: str, cloudflared: str, port: 
     with _lock:
         if _server is not None:
             return ""
+        os.environ["FOTOTAKIP_WEB"] = web_dir
         os.environ["HOME"] = files_dir                 # cloudflared ~/.cloudflared kullanır
         os.environ["TMPDIR"] = cache_dir
         tempfile.tempdir = cache_dir                   # yedek zip'i buraya yazılır
@@ -33,6 +32,8 @@ def start(files_dir: str, cache_dir: str, web_dir: str, cloudflared: str, port: 
             os.environ["FOTOTAKIP_CLOUDFLARED"] = cloudflared
         # Android'de /etc/resolv.conf yok; Go'nun DNS'i sistem çözücüsünü kullansın.
         os.environ.setdefault("GODEBUG", "netdns=cgo")
+        from fototakip.__main__ import autostart_tunnel, ensure_setup_code
+        from fototakip.server import Config, make_server
         cfg = Config(host="0.0.0.0", port=int(port), data_dir=os.path.join(files_dir, "fototakip-data"),
                      web_dir=web_dir, quiet=True)
         server = make_server(cfg)
@@ -67,6 +68,7 @@ def setup_code() -> str:
     """İlk kurulum bitmediyse kurulum kodunu döndürür (kurulumdan sonra dosya silinir)."""
     if _cfg is None:
         return ""
+    from fototakip.api import setup_code_file
     try:
         with open(setup_code_file(_cfg), encoding="utf-8") as f:
             return f.read().strip()
@@ -78,8 +80,10 @@ def lan_urls() -> list:
     server = _server
     if server is None:
         return []
+    from fototakip.__main__ import lan_addresses
     return [f"http://{a}:{server.server_address[1]}" for a in lan_addresses()]
 
 
 def version() -> str:
+    from fototakip import __version__
     return __version__

@@ -2,7 +2,7 @@
 
 Saha teknisyenleri için fotoğraf tabanlı iş takibi. Her iş bir fotoğrafla açılır ("önce") ve bir fotoğrafla kapanır ("sonra"). Yönetici iki fotoğrafı karşılaştırır, onaylar ya da gerekçe yazarak geri gönderir.
 
-**Durum: v0.7.0.** Tek bir Android telefonda çalışır: ya **APK** olarak (Termux gerekmez) ya da Termux ile. Ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
+**Durum: v0.7.1.** Tek bir Android telefonda çalışır: ya **APK** olarak (Termux gerekmez) ya da Termux ile. Ekip aynı telefona tarayıcıdan bağlanır. Sunucu yalnızca Python standart kütüphanesini kullanır, derleme gerektiren paket yoktur.
 
 ## Ne yapar
 

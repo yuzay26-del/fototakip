@@ -138,7 +138,7 @@ public class MainActivity extends Activity {
 
     private void showMessage(String title, String detail) {
         String html = "<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>"
-                + "<body style='font-family:sans-serif;background:#ECEFF1;color:#263238;padding:32px 20px'>"
+                + "<body style='font-family:sans-serif;background:#ECEFF1;color:#263238;padding:32px 20px;overflow-wrap:anywhere'>"
                 + "<h2 style='color:#0A6890'>" + esc(title) + "</h2><p>" + esc(detail) + "</p></body>";
         web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
     }

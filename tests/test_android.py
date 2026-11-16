@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -66,6 +67,38 @@ class AndroidEntryTest(unittest.TestCase):
         self.start(cloudflared=binary)
         self.assertEqual(os.environ["FOTOTAKIP_CLOUDFLARED"], binary)
         self.assertEqual(os.environ["GODEBUG"], "netdns=cgo")
+
+
+class ApkLayoutTest(unittest.TestCase):
+    """APK'daki düzen: Python paketinin yanında web/ yok; arayüz ayrı bir klasöre açılır."""
+
+    def test_starts_without_web_next_to_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = os.path.join(tmp, "pkg")
+            shutil.copytree(os.path.join(ROOT, "fototakip"), os.path.join(pkg, "fototakip"),
+                            ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copy(os.path.join(ROOT, "android", "app", "src", "main", "python", "fototakip_android.py"), pkg)
+            files, cache = os.path.join(tmp, "files"), os.path.join(tmp, "cache")
+            os.makedirs(cache)
+            shutil.copytree(os.path.join(ROOT, "web"), os.path.join(files, "web"))
+            script = (
+                "import sys, urllib.request\n"
+                f"sys.path.insert(0, {pkg!r})\n"
+                "import fototakip_android as fa\n"
+                f"fa.start({files!r}, {cache!r}, {os.path.join(files, 'web')!r}, '', 0)\n"
+                "port = fa._server.server_address[1]\n"
+                "body = urllib.request.urlopen(f'http://127.0.0.1:{port}/').read().decode()\n"
+                "assert 'FotoTakip' in body, body[:200]\n"
+                "import fototakip\n"
+                f"assert fototakip.__file__.startswith({pkg!r}), fototakip.__file__\n"
+                "fa.stop()\n"
+                "print('ok')\n"
+            )
+            env = {k: v for k, v in os.environ.items() if k != "FOTOTAKIP_WEB"}
+            r = subprocess.run([sys.executable, "-I", "-c", script], capture_output=True, text=True,
+                               timeout=60, cwd=tmp, env=env)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("ok", r.stdout)
 
 
 if __name__ == "__main__":
